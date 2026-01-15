@@ -1,0 +1,12 @@
+{
+  "sway": {
+    "homeManager": [
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/desktop/sway/workspaces.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/desktop/sway/theming.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/desktop/sway/startup.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/desktop/sway/keybindings.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/desktop/sway/input.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/desktop/sway/default.nix"
+    ]
+  }
+}

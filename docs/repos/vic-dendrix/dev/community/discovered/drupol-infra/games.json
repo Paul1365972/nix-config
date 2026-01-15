@@ -1,0 +1,7 @@
+{
+  "games": {
+    "homeManager": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/games/enemy-territory.nix"
+    ]
+  }
+}

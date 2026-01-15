@@ -1,0 +1,13 @@
+[book]
+authors = ["Victor Borja <vborja@apache.org>"]
+language = "en"
+src = "."
+title = "Den - aspect-oriented Dendritic Nix"
+
+[output.html]
+git-repository-url = "https://github.com/vic/den"
+edit-url-template = "./wiki_edit/{path}"
+additional-js = ["./theme/md_links.js"]
+additional-css = ["./theme/catppuccin.css"]
+default-theme = "mocha"
+preferred-dark-theme = "mocha"

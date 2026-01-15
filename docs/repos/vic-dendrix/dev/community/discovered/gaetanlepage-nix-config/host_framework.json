@@ -1,0 +1,18 @@
+{
+  "host_framework": {
+    "homeManager": [
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/home/kanshi.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/home/inria.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/home/default.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/home/backup/default.nix"
+    ],
+    "nixos": [
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/wireguard/default.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/misc.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/hardware.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/disko.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/default.nix",
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/framework/autofs.nix"
+    ]
+  }
+}

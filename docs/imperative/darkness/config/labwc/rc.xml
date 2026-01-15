@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<labwc_config>
+  <!-- Focus settings -->
+  <focus>
+    <followMouse>no</followMouse>
+    <raiseOnFocus>yes</raiseOnFocus>
+  </focus>
+
+  <!-- Theme settings -->
+  <theme>
+    <name>Clearlooks</name>
+    <cornerRadius>0</cornerRadius>
+  </theme>
+
+  <!-- Cursor settings - hide after 5 seconds of inactivity (replaces unclutter) -->
+  <cursor>
+    <theme>default</theme>
+  </cursor>
+
+  <!-- Keyboard settings -->
+  <keyboard>
+    <repeatRate>25</repeatRate>
+    <repeatDelay>300</repeatDelay>
+
+    <!-- Alt+Tab to switch windows forward -->
+    <keybind key="A-Tab">
+      <action name="NextWindow"/>
+    </keybind>
+
+    <!-- Alt+Shift+Tab to switch windows backward -->
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow"/>
+    </keybind>
+
+    <!-- Alt+F4 to close window -->
+    <keybind key="A-F4">
+      <action name="Close"/>
+    </keybind>
+  </keyboard>
+
+  <!-- Resistance -->
+  <resistance>
+    <screenEdgeStrength>20</screenEdgeStrength>
+  </resistance>
+
+  <!-- Window placement -->
+  <placement>
+    <policy>center</policy>
+  </placement>
+
+  <!-- Window rules -->
+  <windowRules>
+  </windowRules>
+
+  <!-- Desktop settings -->
+  <desktops>
+    <number>1</number>
+    <popupTime>0</popupTime>
+  </desktops>
+
+  <!-- libinput settings -->
+  <libinput>
+    <device category="default">
+      <naturalScroll>no</naturalScroll>
+    </device>
+  </libinput>
+
+  <!-- Regions - for multi-monitor setup -->
+  <regions>
+    <!-- Can be configured per output if needed -->
+  </regions>
+
+  <!-- Screen locker and power management -->
+  <core>
+    <!-- Disable screen blanking via compositor (handled by systemd-logind) -->
+    <gap>0</gap>
+  </core>
+</labwc_config>

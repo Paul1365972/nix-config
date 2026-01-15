@@ -1,0 +1,7 @@
+{
+  "host_inria": {
+    "homeManager": [
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/hosts/inria/home.nix"
+    ]
+  }
+}

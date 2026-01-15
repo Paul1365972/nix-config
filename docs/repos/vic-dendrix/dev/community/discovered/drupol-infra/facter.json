@@ -1,0 +1,10 @@
+{
+  "facter": {
+    "homeManager": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/facter/facter.nix"
+    ],
+    "nixos": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/facter/facter.nix"
+    ]
+  }
+}

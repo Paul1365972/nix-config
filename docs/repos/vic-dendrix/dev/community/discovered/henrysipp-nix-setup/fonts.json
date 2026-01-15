@@ -1,0 +1,10 @@
+{
+  "fonts": {
+    "homeManager": [
+      "/nix/store/lpnd1hzjg10a8v4hjq6bcarlrh2kcmf4-source/modules/fonts/fonts.nix"
+    ],
+    "nixos": [
+      "/nix/store/lpnd1hzjg10a8v4hjq6bcarlrh2kcmf4-source/modules/fonts/fonts.nix"
+    ]
+  }
+}

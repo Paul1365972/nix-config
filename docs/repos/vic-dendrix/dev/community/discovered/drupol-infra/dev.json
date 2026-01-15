@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "homeManager": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/xdg.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/languages/nix.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/mergiraf.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/lazygit.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/jujutsu.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/gpg.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/git.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/gh.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/git/gh-dash.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/editors/zeditor.nix",
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/editors/vscode.nix"
+    ],
+    "nixos": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/dev/editors/vscode.nix"
+    ]
+  }
+}

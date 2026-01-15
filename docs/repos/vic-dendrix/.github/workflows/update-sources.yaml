@@ -1,0 +1,68 @@
+{
+  "concurrency": {
+    "cancel-in-progress": true,
+    "group": "update"
+  },
+  "jobs": {
+    "update": {
+      "environment": {
+        "name": "update-sources",
+        "url": "${{steps.update.outputs.pull-request-url}}"
+      },
+      "runs-on": "ubuntu-latest",
+      "steps": [
+        {
+          "uses": "actions/checkout@v4"
+        },
+        {
+          "uses": "wimpysworld/nothing-but-nix@main",
+          "with": {
+            "hatchet-protocol": "holster"
+          }
+        },
+        {
+          "uses": "cachix/install-nix-action@v31"
+        },
+        {
+          "uses": "cachix/cachix-action@v16",
+          "with": {
+            "authToken": "${{secrets.CACHIX_AUTH_TOKEN}}",
+            "name": "dendrix"
+          }
+        },
+        {
+          "run": "set -e\n(cd dev; nix run nixpkgs#npins -- update)\nrm -rf ./dev/community/discovered/*-*\nexport DISCOVER_ASPECTS=true\nnix run --impure --accept-flake-config --override-input dendrix . --print-build-logs ./dev#genfiles\nnix run --accept-flake-config --override-input dendrix . --print-build-logs ./dev#fmt\nnix flake --accept-flake-config check path:dev --override-input dendrix . --print-build-logs\n"
+        },
+        {
+          "id": "update",
+          "uses": "peter-evans/create-pull-request@v7",
+          "with": {
+            "assignees": "vic",
+            "author": "Victor Borja <vborja@apache.org>",
+            "body": "Please review.",
+            "branch": "update-sources",
+            "branch-suffix": "timestamp",
+            "commit-message": "Update sources",
+            "title": "Update community sources."
+          }
+        }
+      ]
+    }
+  },
+  "name": "update sources",
+  "on": {
+    "repository_dispatch": {},
+    "schedule": [
+      {
+        "cron": "0 5 * * *"
+      }
+    ],
+    "workflow_call": {},
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "write",
+    "id-token": "write",
+    "pull-requests": "write"
+  }
+}

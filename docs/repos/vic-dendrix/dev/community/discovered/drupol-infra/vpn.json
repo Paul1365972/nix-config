@@ -1,0 +1,10 @@
+{
+  "vpn": {
+    "homeManager": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/vpn/default.nix"
+    ],
+    "nixos": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/vpn/default.nix"
+    ]
+  }
+}

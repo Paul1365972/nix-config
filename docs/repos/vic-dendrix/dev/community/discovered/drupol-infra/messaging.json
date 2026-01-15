@@ -1,0 +1,7 @@
+{
+  "messaging": {
+    "homeManager": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/messaging/default.nix"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "ssh-server": {
+    "nixos": [
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/nixos/core/ssh-server.nix"
+    ]
+  }
+}

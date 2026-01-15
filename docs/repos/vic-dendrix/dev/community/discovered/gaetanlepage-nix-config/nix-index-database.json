@@ -1,0 +1,7 @@
+{
+  "nix-index-database": {
+    "homeManager": [
+      "/nix/store/35kdnji7s93lls6nb7pz5sbqsagdsgwd-source/modules/home/core/nix-index-database.nix"
+    ]
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "pins": {
+    "Maka-77x-nixconf7": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "Maka-77x",
+        "repo": "nixconf7"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "e3fd4cacd66d708911109b3a0f43f7b65d8be7bd",
+      "url": "https://github.com/Maka-77x/nixconf7/archive/e3fd4cacd66d708911109b3a0f43f7b65d8be7bd.tar.gz",
+      "hash": "0x58y3kg134ykgapb1nic41k78nl32qvrjx0lq9qcy2vmblmmcpa"
+    },
+    "dliberalesso-nix-config": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "dliberalesso",
+        "repo": "nix-config"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "e78eae677a5545aed7dfeea9167e2f1298d06d9b",
+      "url": "https://github.com/dliberalesso/nix-config/archive/e78eae677a5545aed7dfeea9167e2f1298d06d9b.tar.gz",
+      "hash": "0jz69j3f5ynlfjmxjvw3gi3ys02sgzjyfi67xawz844gx1clj07c"
+    },
+    "drupol-infra": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "drupol",
+        "repo": "infra"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "d168261d989d5b5814cb13eb9b9142078e202c5f",
+      "url": "https://github.com/drupol/infra/archive/d168261d989d5b5814cb13eb9b9142078e202c5f.tar.gz",
+      "hash": "150kxqlf47fl0r6z0fz9a2qgikh95rs2x9zf3yjamxmqdjx50gz1"
+    },
+    "gaetanlepage-nix-config": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "gaetanlepage",
+        "repo": "nix-config"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "c97af82e25d96d720d9871c4d31d1479a7d3667e",
+      "url": "https://github.com/gaetanlepage/nix-config/archive/c97af82e25d96d720d9871c4d31d1479a7d3667e.tar.gz",
+      "hash": "16385vs1rf9syc9m8fgyrhm1w3qlk77w7x9m61c7vsx92zy0923a"
+    },
+    "henrysipp-nix-setup": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "henrysipp",
+        "repo": "nix-setup"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "48a93d0275eba0adf48977609fc100dce8f9b49c",
+      "url": "https://github.com/henrysipp/nix-setup/archive/48a93d0275eba0adf48977609fc100dce8f9b49c.tar.gz",
+      "hash": "0zlz8x7fv1lz8ma5wyy652s3gdfjda9m81icf9cql6cfrs1w4ixm"
+    },
+    "icyd-nixvim": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "icyd",
+        "repo": "nixvim"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "f3b8fb687c6c59af13c569f8201d0359088e2ada",
+      "url": "https://github.com/icyd/nixvim/archive/f3b8fb687c6c59af13c569f8201d0359088e2ada.tar.gz",
+      "hash": "1k4clhy4ipx92zp8c7q2jgx0q2x10jj19fnsyrlmf6m56wh73kz9"
+    },
+    "quasigod-nixconfig": {
+      "type": "Git",
+      "repository": {
+        "type": "Forgejo",
+        "server": "https://codeberg.org/",
+        "owner": "vic",
+        "repo": "quasigod-nixconfig"
+      },
+      "branch": "vic/jj-change-znunzxyumlrt",
+      "submodules": false,
+      "revision": "4326b7976ff363f83a461700a4567859830906bf",
+      "url": "https://codeberg.org/vic/quasigod-nixconfig/archive/4326b7976ff363f83a461700a4567859830906bf.tar.gz",
+      "hash": "1pxh0nvxj1g0a7z3ir99gnhllpylr8xn05b1gz2ysw9zngrpnqya"
+    },
+    "vic-vix": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "vic",
+        "repo": "vix"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "f31e8a10fd4dc69980d661bbd610f4aa551fbbb0",
+      "url": "https://github.com/vic/vix/archive/f31e8a10fd4dc69980d661bbd610f4aa551fbbb0.tar.gz",
+      "hash": "0xwszdbjlcgijyzxvidjlspipxxfd8yyffln1ch1ir2pzs7y5078"
+    }
+  },
+  "version": 5
+}

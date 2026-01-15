@@ -1,0 +1,30 @@
+name: Validate Tarball
+
+on:
+  workflow_call: {}
+
+jobs:
+  validate:
+    name: Validate Tarball 🩺
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout WSL Repo
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          repository: microsoft/WSL
+          ref: 2.6.3
+
+      - name: Install dependencies 📦
+        shell: bash
+        run: |
+          pip3 install -r distributions/requirements.txt
+
+      - name: Download Tarball 📥
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: tarball
+
+      - name: Validate Tarball 🩺
+        shell: bash
+        run: |
+          python3 distributions/validate-modern.py --tar nixos.wsl

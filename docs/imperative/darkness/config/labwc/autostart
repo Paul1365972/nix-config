@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Set themes
+export GTK_THEME=Adwaita:dark
+export QT_QPA_PLATFORMTHEME=qt5ct
+
+# Start Waybar panel
+waybar &
+
+# Set wallpaper
+swaybg -i ~/Pictures/megumin_wallpaper.png -m fill &
+
+# Start Chromium
+gtk-launch chromium-custom &

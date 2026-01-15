@@ -1,0 +1,7 @@
+{
+  "guacamole": {
+    "nixos": [
+      "/nix/store/357xahdzgmmbkqmawphqz9sz1a6gvs9v-source/modules/guacamole/guacamole.nix"
+    ]
+  }
+}

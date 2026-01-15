@@ -1,0 +1,45 @@
+# Documentation Repositories
+
+[submodule "docs/repos/vic-import-tree"]
+	path = docs/repos/vic-import-tree
+	url = https://github.com/vic/import-tree.git
+
+[submodule "docs/repos/vic-flake-file"]
+	path = docs/repos/vic-flake-file
+	url = https://github.com/vic/flake-file.git
+
+[submodule "docs/repos/vic-flake-aspects"]
+	path = docs/repos/vic-flake-aspects
+	url = https://github.com/vic/flake-aspects.git
+
+[submodule "docs/repos/vic-den"]
+	path = docs/repos/vic-den
+	url = https://github.com/vic/den.git
+
+[submodule "docs/repos/vic-dendrix"]
+	path = docs/repos/vic-dendrix
+	url = https://github.com/vic/dendrix.git
+
+[submodule "docs/repos/mightyiam-dendritic"]
+	path = docs/repos/mightyiam-dendritic
+	url = https://github.com/mightyiam/dendritic.git
+
+[submodule "docs/repos/vic-vix"]
+	path = docs/repos/vic-vix
+	url = https://github.com/vic/vix.git
+
+[submodule "docs/repos/hercules-ci-flake.parts-website"]
+	path = docs/repos/hercules-ci-flake.parts-website
+	url = https://github.com/hercules-ci/flake.parts-website.git
+
+[submodule "docs/repos/vic-den-wiki"]
+	path = docs/repos/vic-den-wiki
+	url = https://github.com/vic/den.wiki.git
+
+[submodule "docs/repos/nix-community-nixos-wsl"]
+	path = docs/repos/nix-community-nixos-wsl
+	url = https://github.com/nix-community/NixOS-WSL.git
+
+[submodule "docs/repos/nvmd-nixos-raspberrypi"]
+	path = docs/repos/nvmd-nixos-raspberrypi
+	url = https://github.com/nvmd/nixos-raspberrypi.git

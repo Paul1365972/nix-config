@@ -1,0 +1,47 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [labeled, opened, synchronize, reopened, review_requested, ready_for_review]
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  non-draft:
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "true" = "${{github.ref == 'refs/heads/main' || github.event.pull_request.draft == false}}"
+  flake-check:
+    needs: [non-draft]
+    name: nix flake check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: cachix/install-nix-action@v31
+      - run: nix flake check -L github:vic/checkmate --override-input target github:$GITHUB_REPOSITORY/$GITHUB_SHA
+  template:
+    needs: [non-draft]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        template: [default, bogus, examples]
+    name: Check template ${{matrix.template}} ${{matrix.os}}
+    runs-on: ${{matrix.os}}
+    steps:
+      - uses: wimpysworld/nothing-but-nix@main
+        if: matrix.os == 'ubuntu-latest'
+      - uses: cachix/install-nix-action@v31
+      - uses: DeterminateSystems/magic-nix-cache-action@v13
+      - run: nix flake init -t github:$GITHUB_REPOSITORY/$GITHUB_SHA#${{matrix.template}}
+      - run: |
+          cat <<-EOF > modules/ci-runtime.nix
+          { lib, ... }:
+          {
+            flake-file.inputs.den.url = lib.mkForce "github:$GITHUB_REPOSITORY/$GITHUB_SHA";
+            _module.args.CI = true;
+          }
+          EOF
+      - run: nix run .#write-flake --override-input den "github:$GITHUB_REPOSITORY/$GITHUB_SHA"
+      - run: nix flake update den
+      - run: nix run .#write-flake
+      - run: nix flake metadata
+      - run: nix flake check
