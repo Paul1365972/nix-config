@@ -35,7 +35,7 @@ wsl -d NixOS
 
 ```bash
 # Build the SD image
-nix build .#nixosConfigurations.darkness.config.system.build.sdImage
+nix build .#darkness-sd-image
 
 # Flash to SD card (replace sdX)
 sudo dd if=./result/sd-image/*.img of=/dev/sdX bs=4M status=progress

@@ -1,0 +1,52 @@
+name: Build Darkness SD Image
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'modules/**'
+      - 'flake.nix'
+      - 'flake.lock'
+  workflow_dispatch:
+
+jobs:
+  build-sd-image:
+    name: Build RPi SD Image
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt /usr/local/lib/android /usr/share/dotnet
+          df -h
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            extra-substituters = https://nixos-raspberrypi.cachix.org https://nix-community.cachix.org
+            extra-trusted-public-keys = nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+            accept-flake-config = true
+
+      - name: Build SD Image
+        run: |
+          nix build .#darkness-sd-image -L --show-trace
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifacts
+          cp -L result/*.img.zst artifacts/ || cp -L result/* artifacts/
+          ls -lah artifacts/
+
+      - name: Upload SD Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: darkness-sd-image
+          path: artifacts/*
+          retention-days: 30
+          compression-level: 0
