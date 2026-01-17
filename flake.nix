@@ -16,10 +16,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:nix-community/home-manager";
     };
-    home-manager-rpi = {
-      inputs.nixpkgs.follows = "nixos-raspberrypi/nixpkgs";
-      url = "github:nix-community/home-manager/release-25.11";
-    };
     import-tree.url = "github:vic/import-tree";
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
     nixos-wsl = {

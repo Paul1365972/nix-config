@@ -40,7 +40,7 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p artifacts
-          cp -L result/*.img.zst artifacts/ || cp -L result/* artifacts/
+          cp -L result/sd-image/*.img.zst artifacts/
           ls -lah artifacts/
 
       - name: Upload SD Image

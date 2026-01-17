@@ -41,7 +41,7 @@ in
           chromium
 
           # File manager and media
-          xfce.thunar
+          thunar
           mpv
 
           # Theming

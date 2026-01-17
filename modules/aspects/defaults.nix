@@ -7,8 +7,8 @@
 {
   # Global static settings
   den.default = {
-    nixos.system.stateVersion = lib.mkDefault "26.05";
-    homeManager.home.stateVersion = lib.mkDefault "26.05";
+    nixos.system.stateVersion = "26.05";
+    homeManager.home.stateVersion = "26.05";
   };
 
   # Default includes for all hosts/users
