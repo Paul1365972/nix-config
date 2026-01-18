@@ -21,7 +21,10 @@
 
         programs.git = {
           enable = true;
-          settings.user.name = "Paul";
+          settings.user = {
+            name = "Paul1365972";
+            email = "paul1365972@gmail.com";
+          };
         };
       };
   };

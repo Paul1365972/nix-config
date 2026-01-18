@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<labwc_config>
+  <focus>
+    <followMouse>no</followMouse>
+    <raiseOnFocus>yes</raiseOnFocus>
+  </focus>
+
+  <theme>
+    <name>Clearlooks</name>
+    <cornerRadius>0</cornerRadius>
+  </theme>
+
+  <cursor>
+    <theme>default</theme>
+  </cursor>
+
+  <keyboard>
+    <repeatRate>25</repeatRate>
+    <repeatDelay>300</repeatDelay>
+    <keybind key="A-Tab"><action name="NextWindow"/></keybind>
+    <keybind key="A-S-Tab"><action name="PreviousWindow"/></keybind>
+    <keybind key="A-F4"><action name="Close"/></keybind>
+  </keyboard>
+
+  <resistance>
+    <screenEdgeStrength>20</screenEdgeStrength>
+  </resistance>
+
+  <placement>
+    <policy>center</policy>
+  </placement>
+
+  <desktops>
+    <number>1</number>
+    <popupTime>0</popupTime>
+  </desktops>
+
+  <libinput>
+    <device category="default">
+      <naturalScroll>no</naturalScroll>
+    </device>
+  </libinput>
+
+  <core>
+    <gap>0</gap>
+  </core>
+</labwc_config>

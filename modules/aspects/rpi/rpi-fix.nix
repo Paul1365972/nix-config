@@ -9,17 +9,22 @@
 { inputs, den, ... }:
 {
   den.aspects.rpi-fix = {
-    nixos = { lib, ... }: let
-      nixpkgsPath = inputs.nixpkgs.outPath;
-      renamePath = nixpkgsPath + "/nixos/modules/rename.nix";
-      renameModule = import renamePath { inherit lib; };
-      moduleFilter = module:
-        lib.attrByPath [ "options" "boot" "loader" "raspberryPi" ] null
-          (module { config = null; options = null; })
-        == null;
-    in {
-      disabledModules = [ renamePath ];
-      imports = builtins.filter moduleFilter renameModule.imports;
-    };
+    nixos =
+      { lib, ... }:
+      let
+        nixpkgsPath = inputs.nixpkgs.outPath;
+        renamePath = nixpkgsPath + "/nixos/modules/rename.nix";
+        renameModule = import renamePath { inherit lib; };
+        moduleFilter =
+          module:
+          lib.attrByPath [ "options" "boot" "loader" "raspberryPi" ] null (module {
+            config = null;
+            options = null;
+          }) == null;
+      in
+      {
+        disabledModules = [ renamePath ];
+        imports = builtins.filter moduleFilter renameModule.imports;
+      };
   };
 }

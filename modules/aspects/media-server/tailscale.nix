@@ -15,7 +15,10 @@
         systemd.services.taildrive = {
           description = "Taildrive WebDAV Mount (rclone)";
           requires = [ "tailscaled.service" ];
-          after = [ "tailscaled.service" "network-online.target" ];
+          after = [
+            "tailscaled.service"
+            "network-online.target"
+          ];
           wants = [ "network-online.target" ];
           wantedBy = [ "multi-user.target" ];
           serviceConfig = {
@@ -50,14 +53,14 @@
       };
 
     homeManager =
-      { pkgs, ... }:
+      { pkgs, config, ... }:
       {
         # Taildrop receiver service
         systemd.user.services.tailreceive = {
           Unit.Description = "File Receiver Service for Taildrop";
           Service = {
             UMask = "0077";
-            ExecStart = "${pkgs.tailscale}/bin/tailscale file get --verbose --loop --conflict=rename /home/paul/Downloads/";
+            ExecStart = "${pkgs.tailscale}/bin/tailscale file get --verbose --loop --conflict=rename ${config.home.homeDirectory}/Downloads/";
           };
           Install.WantedBy = [ "default.target" ];
         };

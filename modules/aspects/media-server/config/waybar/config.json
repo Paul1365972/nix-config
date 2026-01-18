@@ -1,0 +1,68 @@
+{
+    "position": "bottom",
+    "layer": "top",
+    "height": 28,
+    "spacing": 0,
+    "autohide": true,
+    "autohide-delay": 1,
+
+    "modules-left": [
+        "custom/shutdown",
+        "custom/thunar",
+        "custom/chromium",
+        "custom/mpv"
+    ],
+    "modules-center": [
+        "wlr/taskbar"
+    ],
+    "modules-right": [
+        "clock"
+    ],
+
+    "custom/shutdown": {
+        "format": " ",
+        "on-click": "gtk-launch shutdown",
+        "tooltip": true,
+        "tooltip-format": "Shutdown"
+    },
+
+    "custom/thunar": {
+        "format": " ",
+        "on-click": "thunar",
+        "tooltip": true,
+        "tooltip-format": "File Manager"
+    },
+
+    "custom/chromium": {
+        "format": " ",
+        "on-click": "gtk-launch chromium-custom",
+        "tooltip": true,
+        "tooltip-format": "Chromium Browser"
+    },
+
+    "custom/mpv": {
+        "format": " ",
+        "on-click": "mpv",
+        "tooltip": true,
+        "tooltip-format": "MPV Player"
+    },
+
+    "wlr/taskbar": {
+        "format": "{icon} {title}",
+        "icon-size": 16,
+        "icon-theme": "hicolor",
+        "active-first": true,
+        "tooltip-format": "{title}",
+        "on-click": "activate",
+        "on-click-middle": "close",
+        "on-click-right": "minimize",
+        "max-length": 30
+    },
+
+    "clock": {
+        "interval": 60,
+        "format": "{:%H:%M}",
+        "format-alt": "{:%a %d %b}",
+        "tooltip-format": "{:%A, %B %d, %Y}"
+    }
+}
