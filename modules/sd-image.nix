@@ -5,7 +5,6 @@
   perSystem =
     { ... }:
     {
-      packages.darkness-sd-image =
-        inputs.self.nixosConfigurations.darkness.config.system.build.sdImage;
+      packages.darkness-sd-image = inputs.self.nixosConfigurations.darkness.config.system.build.sdImage;
     };
 }

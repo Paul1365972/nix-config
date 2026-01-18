@@ -4,6 +4,7 @@
     includes = [
       den.aspects.common
       den.aspects.binfmt
+      den.aspects.nix-dev
     ];
 
     nixos =
@@ -12,7 +13,6 @@
         imports = [ inputs.nixos-wsl.nixosModules.default ];
 
         wsl.enable = true;
-        wsl.defaultUser = "paul";
         wsl.interop.register = true;
 
         environment.systemPackages = with pkgs; [

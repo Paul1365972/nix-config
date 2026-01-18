@@ -3,7 +3,10 @@
   den.aspects.nix = {
     nixos = {
       nix.settings = {
-        experimental-features = [ "nix-command" "flakes" ];
+        experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
         auto-optimise-store = true;
 
         substituters = [
@@ -21,7 +24,10 @@
         ];
 
         allowed-users = [ "@wheel" ];
-        trusted-users = [ "root" "@wheel" ];
+        trusted-users = [
+          "root"
+          "@wheel"
+        ];
 
         max-jobs = "auto";
       };

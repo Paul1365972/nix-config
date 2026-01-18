@@ -10,10 +10,15 @@
     # - Injects RPi kernel/firmware/bootloader overlays
     # - Requires specialArgs.nixos-raspberrypi for hardware modules
     # - We override nixpkgs to use standard (cached) instead of their fork
-    instantiate = args: inputs.nixos-raspberrypi.lib.nixosSystem (args // {
-      nixpkgs = inputs.nixpkgs;
-      specialArgs.nixos-raspberrypi = inputs.nixos-raspberrypi;
-    });
+    instantiate =
+      args:
+      inputs.nixos-raspberrypi.lib.nixosSystem (
+        args
+        // {
+          nixpkgs = inputs.nixpkgs;
+          specialArgs.nixos-raspberrypi = inputs.nixos-raspberrypi;
+        }
+      );
   };
 
   # WSL instance
