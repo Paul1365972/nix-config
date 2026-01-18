@@ -2,6 +2,8 @@
 {
   den.aspects.nix = {
     nixos = {
+      nix.channel.enable = false;
+
       nix.settings = {
         experimental-features = [
           "nix-command"
@@ -43,7 +45,8 @@
         dates = [ "weekly" ];
       };
 
-      nix.channel.enable = false;
+      # nh: modern Nix CLI helper
+      programs.nh.enable = true;
     };
   };
 }

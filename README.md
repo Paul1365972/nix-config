@@ -41,13 +41,30 @@ nix build .#darkness-sd-image
 sudo dd if=./result/sd-image/*.img of=/dev/sdX bs=4M status=progress
 ```
 
+## Usage
+
+```bash
+# Switch to new system configuration
+nh os switch .
+
+# Manual garbage collection
+nh clean all
+```
+
 ## Development
 
 ```bash
-nix run .#write-flake  # Regenerate flake.nix after changing inputs
-nix flake update       # Update dependencies in flake.lock
-nix flake check        # Verify configuration
-nix run .#vm           # Test laptop in VM
+# Regenerate flake.nix after changing inputs
+nix run .#write-flake
+
+# Update dependencies
+nix flake update
+
+# Verify configuration
+nix flake check --all-systems
+
+# Test laptop in VM
+nix run .#vm
 ```
 
 ## Docs
