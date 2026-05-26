@@ -1,0 +1,38 @@
+{ den, ... }:
+{
+  den.aspects.darkness = {
+    includes = with den.aspects.darkness.provides; [
+      den.aspects.common
+      den.aspects.rpi
+      den.aspects.auto-upgrade
+      den.aspects.tailscale
+      wireless
+      taildrive
+      audio
+      desktop
+    ];
+
+    provides.to-users.includes = with den.aspects.darkness.provides; [
+      taildrive
+      audio
+      desktop
+    ];
+
+    nixos =
+      { nixos-raspberrypi, ... }:
+      {
+        imports = with nixos-raspberrypi.nixosModules; [
+          raspberry-pi-5.base
+          # raspberry-pi-5.page-size-16k forces a long jemalloc recompile and nothing we run needs it.
+          raspberry-pi-5.display-vc4
+          raspberry-pi-5.bluetooth
+        ];
+
+        system.autoUpgrade.allowReboot = true;
+        system.autoUpgrade.rebootWindow = {
+          lower = "04:00";
+          upper = "05:00";
+        };
+      };
+  };
+}

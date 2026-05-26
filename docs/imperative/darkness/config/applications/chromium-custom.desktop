@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Name=Chromium
+Comment=Web Browser
+Exec=/usr/bin/chromium --restore-last-session --disable-session-crashed-bubble --password-store=basic
+Icon=chromium
+Type=Application
+Categories=Network;WebBrowser;
+StartupNotify=true

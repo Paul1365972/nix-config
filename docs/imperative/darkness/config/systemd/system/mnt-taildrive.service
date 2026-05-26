@@ -1,0 +1,29 @@
+[Unit]
+Description=Taildrive WebDAV Mount (rclone)
+Requires=tailscaled.service
+After=tailscaled.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStartPre=/bin/mkdir -p /mnt/taildrive
+ExecStart=/usr/bin/rclone mount :webdav: /mnt/taildrive \
+    --webdav-url http://100.100.100.100:8080/ \
+    --vfs-cache-mode writes \
+    --vfs-cache-max-age 24h \
+    --vfs-read-chunk-size 128M \
+    --vfs-read-chunk-size-limit off \
+    --buffer-size 256M \
+    --dir-cache-time 5m \
+    --poll-interval 15s \
+    --uid 1000 \
+    --gid 1000 \
+    --allow-other \
+    --allow-non-empty \
+    --no-checksum
+ExecStop=/bin/fusermount -uz /mnt/taildrive
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
