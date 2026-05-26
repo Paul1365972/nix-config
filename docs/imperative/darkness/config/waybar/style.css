@@ -1,0 +1,79 @@
+/* Waybar style matching tint2 appearance */
+
+* {
+    border: none;
+    border-radius: 0;
+    font-family: sans;
+    font-size: 10px;
+    min-height: 0;
+}
+
+window#waybar {
+    background-color: #2d2d2d;
+    color: #e3e3e3;
+}
+
+/* Common button styles */
+#custom-shutdown,
+#custom-thunar,
+#custom-chromium,
+#custom-mpv,
+#taskbar button {
+    padding: 2px 6px;
+    margin: 2px;
+    background-color: transparent;
+    transition: background-color 0.15s ease-in-out;
+}
+
+/* Launcher icon buttons */
+#custom-shutdown,
+#custom-thunar,
+#custom-chromium,
+#custom-mpv {
+    margin: 2px 3px;
+    min-width: 24px;
+    min-height: 24px;
+    background-repeat: no-repeat;
+    background-size: 20px 20px;
+    background-position: center;
+}
+
+#custom-shutdown { background-image: url("file:///usr/share/icons/Papirus/24x24/actions/system-shutdown.svg"); }
+#custom-thunar { background-image: url("file:///usr/share/icons/Papirus/24x24/apps/Thunar.svg"); }
+#custom-chromium { background-image: url("file:///usr/share/icons/Papirus/24x24/apps/chromium-browser.svg"); }
+#custom-mpv { background-image: url("file:///usr/share/icons/Papirus/24x24/apps/mpv.svg"); }
+
+/* Common hover state */
+#custom-shutdown:hover,
+#custom-thunar:hover,
+#custom-chromium:hover,
+#custom-mpv:hover,
+#taskbar button:hover {
+    background-color: #3d3d3d;
+}
+
+/* Active states */
+#custom-shutdown:active,
+#custom-thunar:active,
+#custom-chromium:active,
+#custom-mpv:active {
+    background-color: #1d1d1d;
+}
+
+#taskbar button.active {
+    color: #ffffff;
+}
+
+/* Tooltip */
+tooltip {
+    background-color: #2d2d2d;
+    color: #dddddd;
+    border: 1px solid #2d2d2d;
+    padding: 8px 4px;
+}
+
+#clock {
+    padding: 2px 8px;
+    margin: 2px;
+    font-weight: bold;
+}

@@ -1,0 +1,21 @@
+pcm.remap40 {
+    type route
+    slave {
+        pcm "hw:0"
+        channels 8
+    }
+    ttable.0.0 1.0    # Front Left -> Channel 0
+    ttable.1.1 1.0    # Front Right -> Channel 1
+    ttable.2.4 1.0    # Rear Left -> Channel 6 (Side Left)
+    ttable.3.5 1.0    # Rear Right -> Channel 7 (Side Right)
+}
+
+pcm.!default {
+    type plug
+    slave.pcm "remap40"
+}
+
+ctl.!default {
+    type hw
+    card 0
+}
