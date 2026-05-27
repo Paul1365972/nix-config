@@ -27,4 +27,9 @@
     form = "laptop";
     users.paul = { };
   };
+
+  den.hosts.x86_64-linux.saber = {
+    form = "server";
+    users.paul = { };
+  };
 }

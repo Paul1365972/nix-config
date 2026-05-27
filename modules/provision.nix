@@ -4,6 +4,7 @@
 #   nix run .#installer   -> result-installer.iso        (dd to USB, boot phos for install)
 #   nix run .#darkness    -> result-darkness.img         (dd to SD card, key already injected)
 #   nix run .#phos-wsl    -> result-phos-wsl.tar.gz      (wsl --import, key already embedded)
+#   nix run .#saber -- root@saber                        (nixos-anywhere over kexec, key injected)
 { inputs, ... }:
 {
   perSystem =
@@ -70,6 +71,30 @@
             echo "-> $out"
           '';
         };
+
+      packages.saber = pkgs.writeShellApplication {
+        name = "provision-saber";
+        runtimeInputs = with pkgs; [
+          sops
+          nixos-anywhere
+        ];
+        text = ''
+          target="''${1:-root@saber}"
+          # Shift target off $@ so remaining args pass through to nixos-anywhere.
+          [ "$#" -gt 0 ] && shift
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+
+          install -d -m 0700 "$tmp/var/lib/sops-nix"
+          ${keyOf "saber"} | install -m 0600 /dev/stdin "$tmp/var/lib/sops-nix/key.txt"
+
+          nixos-anywhere \
+            --flake ${inputs.self}#saber \
+            --target-host "$target" \
+            --extra-files "$tmp" \
+            "$@"
+        '';
+      };
 
       packages.phos-wsl =
         let
