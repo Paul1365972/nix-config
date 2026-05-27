@@ -1,0 +1,87 @@
+name: Build Images
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  installer-iso:
+    name: Build installer ISO
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt /usr/local/lib/android /usr/share/dotnet
+          df -h
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            extra-substituters = https://nix-community.cachix.org
+            extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+            accept-flake-config = true
+
+      - name: Build installer ISO
+        run: |
+          nix build .#installer-iso -L --show-trace
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifacts
+          cp -L result/iso/*.iso artifacts/
+          ls -lah artifacts/
+
+      - name: Upload installer ISO
+        uses: actions/upload-artifact@v7
+        with:
+          name: installer-iso
+          path: artifacts/*
+          retention-days: 30
+          compression-level: 0
+
+  darkness-sd-image:
+    name: Build darkness SD image
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt /usr/local/lib/android /usr/share/dotnet
+          df -h
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            extra-substituters = https://nixos-raspberrypi.cachix.org https://nix-community.cachix.org
+            extra-trusted-public-keys = nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=
+            accept-flake-config = true
+
+      - name: Build SD image
+        run: |
+          nix build .#darkness-sd-image -L --show-trace
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifacts
+          cp -L result/sd-image/*.img.zst artifacts/
+          ls -lah artifacts/
+
+      - name: Upload SD image
+        uses: actions/upload-artifact@v7
+        with:
+          name: darkness-sd-image
+          path: artifacts/*
+          retention-days: 30
+          compression-level: 0
