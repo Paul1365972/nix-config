@@ -6,6 +6,7 @@ keys:
   - &phos     age1gftmg8u4pyk05m024lwtqywtq9sgfvqtklnfm2l8ajyjp262mg2qf86970
   - &phos_wsl age1f33ntll0fq2kk79ne4l8snt0sz0fjz9x02rvheaxsf8ve8tvk3zq68agud
   - &darkness age1p897aquc9mvvgqcett8c0exk3rch5w76mgv3crrx2rc4nqvdkavsgmrp59
+  - &saber    age1vj778pe4fqnhw088vge57x80mshg9fjj85fhq4ty639wva0l2qtqsgf4f8
 
 creation_rules:
   - path_regex: secrets/common\.yaml$
@@ -15,6 +16,7 @@ creation_rules:
           - *phos
           - *phos_wsl
           - *darkness
+          - *saber
 
   - path_regex: secrets/darkness\.yaml$
     key_groups:
@@ -24,7 +26,15 @@ creation_rules:
           - *phos_wsl
           - *darkness
 
-  # darkness deliberately excluded — see top.
+  - path_regex: secrets/saber\.yaml$
+    key_groups:
+      - age:
+          - *admin
+          - *phos
+          - *phos_wsl
+          - *saber
+
+  # darkness + saber deliberately excluded — see top.
   - path_regex: secrets/keys\.yaml$
     key_groups:
       - age:

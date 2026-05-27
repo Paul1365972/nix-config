@@ -9,11 +9,11 @@
     ];
 
     nixos =
-      { pkgs, ... }:
+      { pkgs, lib, ... }:
       {
         nixpkgs.config.allowUnfree = true;
 
-        time.timeZone = "Europe/Amsterdam";
+        time.timeZone = lib.mkDefault "Europe/Berlin";
         i18n.defaultLocale = "en_US.UTF-8";
 
         environment.systemPackages = with pkgs; [
