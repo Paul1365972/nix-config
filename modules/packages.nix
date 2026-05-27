@@ -1,10 +1,11 @@
-# Provisioning artifacts. Run on a host that already has the master sops key
-# at /var/lib/sops-nix/key.txt (i.e. phos or phos-wsl):
+# Raw host images and provision-* wrappers that bake in the host's sops key.
+# provision-* scripts read the master key from /var/lib/sops-nix/key.txt.
 #
-#   nix run .#installer   -> result-installer.iso        (dd to USB, boot phos for install)
-#   nix run .#darkness    -> result-darkness.img         (dd to SD card, key already injected)
-#   nix run .#phos-wsl    -> result-phos-wsl.tar.gz      (wsl --import, key already embedded)
-#   nix run .#saber -- root@saber                        (nixos-anywhere over kexec, key injected)
+# nix build .#installer-iso
+# nix build .#darkness-sd-image
+# nix run .#provision-darkness
+# nix run .#provision-phos-wsl
+# nix run .#provision-saber -- root@saber
 { inputs, ... }:
 {
   perSystem =
@@ -31,17 +32,11 @@
       };
     in
     {
-      packages.installer = pkgs.writeShellApplication {
-        name = "build-installer";
-        text = ''
-          out="''${1:-result-installer.iso}"
-          cp ${installerSystem.config.system.build.isoImage}/iso/*.iso "$out"
-          chmod 644 "$out"
-          echo "-> $out"
-        '';
-      };
+      packages.installer-iso = installerSystem.config.system.build.isoImage;
 
-      packages.darkness =
+      packages.darkness-sd-image = inputs.self.nixosConfigurations.darkness.config.system.build.sdImage;
+
+      packages.provision-darkness =
         let
           image = inputs.self.nixosConfigurations.darkness.config.system.build.sdImage;
         in
@@ -72,7 +67,26 @@
           '';
         };
 
-      packages.saber = pkgs.writeShellApplication {
+      packages.provision-phos-wsl =
+        let
+          builder = inputs.self.nixosConfigurations.phos-wsl.config.system.build.tarballBuilder;
+        in
+        pkgs.writeShellApplication {
+          name = "provision-phos-wsl";
+          runtimeInputs = with pkgs; [ sops ];
+          text = ''
+            out="''${1:-result-phos-wsl.tar.gz}"
+            tmp=$(mktemp -d)
+            trap 'rm -rf "$tmp"' EXIT
+            install -Dm600 <(${keyOf "phos-wsl"}) "$tmp/extra/var/lib/sops-nix/key.txt"
+            sudo ${builder}/bin/nixos-wsl-tarball-builder \
+              --extra-files "$tmp/extra" --chown /var/lib/sops-nix/key.txt 0:0 "$out"
+            sudo chown "$(id -u):$(id -g)" "$out"
+            echo "-> $out"
+          '';
+        };
+
+      packages.provision-saber = pkgs.writeShellApplication {
         name = "provision-saber";
         runtimeInputs = with pkgs; [
           sops
@@ -95,24 +109,5 @@
             "$@"
         '';
       };
-
-      packages.phos-wsl =
-        let
-          builder = inputs.self.nixosConfigurations.phos-wsl.config.system.build.tarballBuilder;
-        in
-        pkgs.writeShellApplication {
-          name = "provision-phos-wsl";
-          runtimeInputs = with pkgs; [ sops ];
-          text = ''
-            out="''${1:-result-phos-wsl.tar.gz}"
-            tmp=$(mktemp -d)
-            trap 'rm -rf "$tmp"' EXIT
-            install -Dm600 <(${keyOf "phos-wsl"}) "$tmp/extra/var/lib/sops-nix/key.txt"
-            sudo ${builder}/bin/nixos-wsl-tarball-builder \
-              --extra-files "$tmp/extra" --chown /var/lib/sops-nix/key.txt 0:0 "$out"
-            sudo chown "$(id -u):$(id -g)" "$out"
-            echo "-> $out"
-          '';
-        };
     };
 }

@@ -1,22 +1,23 @@
-{ ... }:
+{ inputs, ... }:
 {
   flake-file.inputs.nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
 
-  den.aspects.rpi = {
-    nixos =
-      {
-        lib,
-        nixos-raspberrypi,
-        ...
-      }:
-      {
-        imports = [ nixos-raspberrypi.nixosModules.sd-image ];
+  den.aspects.rpi.nixos =
+    { lib, ... }:
+    {
+      imports = [
+        inputs.nixos-raspberrypi.nixosModules.sd-image
+        # Vendor overlays (raspberrypi-utils, rpi kernel/firmware).
+        inputs.nixos-raspberrypi.lib.inject-overlays
+        inputs.nixos-raspberrypi.nixosModules.trusted-nix-caches
+      ];
 
-        boot.loader.raspberry-pi.bootloader = "kernel";
+      # Board modules read this; nixos-raspberrypi.lib.nixosSystem would set it via specialArgs.
+      _module.args.nixos-raspberrypi = inputs.nixos-raspberrypi;
 
-        # profiles/base.nix pulls ZFS in but its kernel module doesn't match the
-        # cached-nixpkgs userspace tooling on the RPi kernel.
-        boot.supportedFilesystems.zfs = lib.mkForce false;
-      };
-  };
+      boot.loader.raspberry-pi.bootloader = "kernel";
+
+      # base profile enables ZFS, but the RPi kernel and nixpkgs userspace zfs don't match.
+      boot.supportedFilesystems.zfs = lib.mkForce false;
+    };
 }
