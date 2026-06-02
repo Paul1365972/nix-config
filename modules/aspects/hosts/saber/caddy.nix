@@ -95,6 +95,15 @@
             "traccar.1365972.xyz".extraConfig = ''
               reverse_proxy http://127.0.0.1:8082
             '';
+
+            "home.1365972.xyz".extraConfig = ''
+              reverse_proxy http://127.0.0.1:8123
+            '';
+
+            "zigbee.1365972.xyz".extraConfig = ''
+              import authentik
+              reverse_proxy http://127.0.0.1:8089
+            '';
           };
         };
 

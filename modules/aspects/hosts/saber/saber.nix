@@ -21,6 +21,9 @@
       nextcloud
       jellyfin
       traccar
+      mosquitto
+      zigbee2mqtt
+      home-assistant
       homepage
       cloudflare-ddns
       # backups
