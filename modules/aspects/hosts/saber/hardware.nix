@@ -17,7 +17,7 @@
 
         hardware.cpu.intel.updateMicrocode = true;
 
-        # Intel HD Graphics 620 — VAAPI/QSV for Jellyfin hardware transcoding.
+        # VAAPI/QSV drivers for Jellyfin hardware transcoding on the iGPU.
         hardware.graphics = {
           enable = true;
           extraPackages = with pkgs; [
@@ -27,6 +27,8 @@
             intel-compute-runtime
           ];
         };
+
+        environment.systemPackages = [ pkgs.libva-utils ];
 
         users.users.jellyfin.extraGroups = [ "render" ];
 
