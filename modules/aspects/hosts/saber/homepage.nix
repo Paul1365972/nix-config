@@ -64,6 +64,20 @@
                   icon = "traccar.svg";
                 };
               }
+              {
+                "Home Assistant" = {
+                  description = "Smart home";
+                  href = "https://home.1365972.xyz";
+                  icon = "home-assistant.svg";
+                };
+              }
+              {
+                "Zigbee2MQTT" = {
+                  description = "Zigbee mesh admin";
+                  href = "https://zigbee.1365972.xyz";
+                  icon = "zigbee2mqtt.svg";
+                };
+              }
             ];
           }
         ];
