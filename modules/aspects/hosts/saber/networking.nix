@@ -15,7 +15,9 @@
           80
           443
         ];
-        # Traccar GPS device protocols (one port per protocol family).
+        # Caddy auto-serves HTTP/3 on UDP/443.
+        allowedUDPPorts = [ 443 ];
+        # Traccar exposes one port per GPS device protocol family.
         allowedTCPPortRanges = [
           {
             from = 5000;

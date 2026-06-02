@@ -30,6 +30,8 @@
       networking.hostName = "saber";
 
       services.tailscale.extraUpFlags = [ "--advertise-exit-node" ];
+      # --advertise-exit-node only works if the kernel forwards packets; useRoutingFeatures = "server" sets the v4/v6 forward sysctls.
+      services.tailscale.useRoutingFeatures = "server";
 
       # Synapse pulls in libolm 3.x for E2EE; flagged insecure upstream but no drop-in replacement yet.
       nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
