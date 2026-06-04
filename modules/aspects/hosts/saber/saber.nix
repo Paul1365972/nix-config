@@ -39,11 +39,6 @@
       # Synapse pulls in libolm 3.x for E2EE; flagged insecure upstream but no drop-in replacement yet.
       nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
 
-      # sops drops ssh-key symlinks into /home/paul/.ssh/ as root, which would leave the dir root-owned and break home-manager writing ~/.ssh/config.
-      systemd.tmpfiles.rules = [
-        "d /home/paul/.ssh 0700 paul users -"
-      ];
-
       system.autoUpgrade.allowReboot = true;
       system.autoUpgrade.rebootWindow = {
         lower = "04:00";
