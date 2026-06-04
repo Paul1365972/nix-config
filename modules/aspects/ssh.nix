@@ -6,29 +6,28 @@ in
   den.aspects.ssh = {
     nixos =
       let
-        mkKey = name: {
-          path = "/home/paul/.ssh/${name}";
+        key = {
           owner = "paul";
-          mode = "0600";
+          mode = "0400";
         };
       in
       {
-        sops.secrets.id_phos = mkKey "id_phos";
-        sops.secrets.id_github = mkKey "id_github";
-        sops.secrets.geomesh-hetzner = mkKey "geomesh-hetzner";
+        sops.secrets.id_phos = key;
+        sops.secrets.id_github = key;
+        sops.secrets.geomesh-hetzner = key;
       };
 
     homeManager = {
       programs.ssh = {
         enable = true;
         matchBlocks = {
-          "github.com".identityFile = "~/.ssh/id_github";
+          "github.com".identityFile = "/run/secrets/id_github";
           "geomesh-hetzner 46.224.189.102" = {
             hostname = "46.224.189.102";
-            identityFile = "~/.ssh/geomesh-hetzner";
+            identityFile = "/run/secrets/geomesh-hetzner";
             user = "root";
           };
-          "*".identityFile = "~/.ssh/id_phos";
+          "*".identityFile = "/run/secrets/id_phos";
         };
       };
 
