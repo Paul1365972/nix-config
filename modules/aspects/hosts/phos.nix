@@ -8,12 +8,17 @@
       den.aspects.binfmt
       den.aspects.audio
       den.aspects.bluetooth
-      den.aspects.auto-upgrade
-      den.aspects.ssh
+      den.aspects.comin
       den.aspects.kitty
       den.aspects.hardening
       den.aspects.zswap
       den.aspects.rice
+      den.aspects.lock
+      den.aspects.notifications
+      den.aspects.clipboard
+      den.aspects.screenshot
+      den.aspects.power
+      den.aspects.waybar
     ];
 
     nixos = {

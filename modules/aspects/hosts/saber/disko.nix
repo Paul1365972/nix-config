@@ -9,9 +9,9 @@
     nixos = {
       imports = [ inputs.disko.nixosModules.disko ];
 
-      # Only /dev/sdb is managed declaratively. /dev/sda1 holds bulk data and must never be touched.
+      # System SSD by serial; sdX letters flip on this machine. The 1TB data disk must never be touched.
       disko.devices.disk.main = {
-        device = "/dev/sdb";
+        device = "/dev/disk/by-id/ata-SanDisk_SD8SNAT-256G-1006_164330427795";
         type = "disk";
         content = {
           type = "gpt";

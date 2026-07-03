@@ -4,7 +4,8 @@
     includes = with den.aspects.darkness.provides; [
       den.aspects.common
       den.aspects.rpi
-      den.aspects.auto-upgrade
+      den.aspects.comin
+      den.aspects.auto-reboot
       den.aspects.tailscale
       wireless
       taildrive
@@ -24,12 +25,6 @@
         raspberry-pi-5.display-vc4
         raspberry-pi-5.bluetooth
       ];
-
-      system.autoUpgrade.allowReboot = true;
-      system.autoUpgrade.rebootWindow = {
-        lower = "04:00";
-        upper = "05:00";
-      };
     };
   };
 }
