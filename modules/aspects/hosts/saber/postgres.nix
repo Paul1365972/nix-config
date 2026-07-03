@@ -2,20 +2,25 @@
 {
   den.aspects.saber.provides.postgres = {
     nixos =
-      { pkgs, lib, ... }:
+      {
+        config,
+        pkgs,
+        lib,
+        ...
+      }:
       let
         services = [
           "authentik"
           "synapse"
           "traccar"
-          "mautrixsignal"
-          "mautrixwhatsapp"
           "maubot"
           "nextcloud"
         ];
+        # flip package to this after running upgrade-pg-cluster
+        newPostgres = pkgs.postgresql_17;
+        cfg = config.services.postgresql;
       in
       {
-        # Pinned to 14; major-version upgrades require a manual pg_upgrade step.
         services.postgresql = {
           enable = true;
           package = pkgs.postgresql_14;
@@ -29,26 +34,43 @@
           # Map OS service users whose names don't match their DB role onto the right role for peer auth.
           identMap = ''
             saber matrix-synapse    synapse
-            saber mautrix-signal    mautrixsignal
-            saber mautrix-whatsapp  mautrixwhatsapp
             saber root              all
             saber postgres          all
           '';
 
           authentication = lib.mkAfter ''
             local synapse           synapse           peer map=saber
-            local mautrixsignal     mautrixsignal     peer map=saber
-            local mautrixwhatsapp   mautrixwhatsapp   peer map=saber
           '';
         };
 
-        # Daily pg_dumpall; picked up by restic in backups.nix.
         services.postgresqlBackup = {
           enable = true;
           location = "/var/backup/postgresql";
           startAt = "*-*-* 02:30:00";
           compression = "zstd";
         };
+
+        environment.systemPackages = [
+          (pkgs.writeShellScriptBin "upgrade-pg-cluster" ''
+            set -eux
+            systemctl stop matrix-synapse maubot traccar phpfpm-nextcloud authentik authentik-worker || true
+            systemctl stop postgresql
+
+            export NEWDATA="/var/lib/postgresql/${newPostgres.psqlSchema}"
+            export NEWBIN="${newPostgres}/bin"
+            export OLDDATA="${cfg.dataDir}"
+            export OLDBIN="${cfg.finalPackage}/bin"
+
+            install -d -m 0700 -o postgres -g postgres "$NEWDATA"
+            cd "$NEWDATA"
+            sudo -u postgres "$NEWBIN/initdb" -D "$NEWDATA" ${lib.escapeShellArgs cfg.initdbArgs}
+
+            sudo -u postgres "$NEWBIN/pg_upgrade" \
+              --old-datadir "$OLDDATA" --new-datadir "$NEWDATA" \
+              --old-bindir "$OLDBIN" --new-bindir "$NEWBIN" \
+              "$@"
+          '')
+        ];
       };
   };
 }

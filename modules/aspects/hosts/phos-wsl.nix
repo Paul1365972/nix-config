@@ -11,8 +11,7 @@
       den.aspects.common
       den.aspects.binfmt
       den.aspects.nix-dev
-      den.aspects.auto-upgrade
-      den.aspects.ssh
+      den.aspects.comin
     ];
 
     nixos.wsl.interop.register = true;

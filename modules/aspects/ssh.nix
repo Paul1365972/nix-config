@@ -20,14 +20,15 @@ in
     homeManager = {
       programs.ssh = {
         enable = true;
-        matchBlocks = {
-          "github.com".identityFile = "/run/secrets/id_github";
+        enableDefaultConfig = false;
+        settings = {
+          "github.com".IdentityFile = "/run/secrets/id_github";
           "geomesh-hetzner 46.224.189.102" = {
-            hostname = "46.224.189.102";
-            identityFile = "/run/secrets/geomesh-hetzner";
-            user = "root";
+            HostName = "46.224.189.102";
+            IdentityFile = "/run/secrets/geomesh-hetzner";
+            User = "root";
           };
-          "*".identityFile = "/run/secrets/id_phos";
+          "*".IdentityFile = "/run/secrets/id_phos";
         };
       };
 

@@ -2,7 +2,7 @@
 {
   den.aspects.saber.provides.filesystems = {
     nixos = {
-      # /dev/sda1 — preserved across reinstalls; disko only manages /dev/sdb.
+      # WDC 1TB data disk — preserved across reinstalls; disko only manages the system SSD.
       fileSystems."/mnt/hdd" = {
         device = "/dev/disk/by-uuid/413e4787-ab72-4842-8b80-205b6e134756";
         fsType = "ext4";
