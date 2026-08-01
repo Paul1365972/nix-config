@@ -1,0 +1,43 @@
+// Tailnet policy for paul1365972.github — managed via GitOps, do not edit in the admin console.
+// Tags: saber = tag:server + tag:exit, darkness = tag:server.
+{
+    "tagOwners": {
+        "tag:server": ["autogroup:admin"],
+        "tag:exit":   ["autogroup:admin"],
+    },
+
+    "grants": [
+        // My devices reach anything (each other, servers, exit-node internet, shared-in NAS).
+        { "src": ["autogroup:member"], "dst": ["*"], "ip": ["*"] },
+        // Server <-> server.
+        { "src": ["tag:server"], "dst": ["tag:server"], "ip": ["*"] },
+        // CLIProxyAPI VIP service.
+        { "src": ["autogroup:member"], "dst": ["svc:cpamc"], "ip": ["tcp:8317"] },
+        // Taildrive: every device may use every device's shares.
+        {
+            "src": ["*"],
+            "dst": ["*"],
+            "app": { "tailscale.com/cap/drive": [{ "shares": ["*"], "access": "rw" }] },
+        },
+    ],
+
+    "nodeAttrs": [
+        { "target": ["autogroup:member"], "attr": ["funnel"] },
+        // Tagged servers drop out of autogroup:member, so they're listed explicitly for Taildrive.
+        { "target": ["autogroup:member", "tag:server"], "attr": ["drive:share", "drive:access"] },
+    ],
+
+    "ssh": [
+        {
+            "src":    ["autogroup:member"],
+            "dst":    ["autogroup:self", "tag:server"],
+            "users":  ["root", "autogroup:nonroot"],
+            "action": "accept",
+        },
+    ],
+
+    "autoApprovers": {
+        "services": { "svc:cpamc": ["tag:server"] },
+        "exitNode": ["tag:exit"],
+    },
+}
