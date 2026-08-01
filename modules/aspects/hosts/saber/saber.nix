@@ -27,6 +27,7 @@
       home-assistant
       homepage
       cloudflare-ddns
+      cliproxyapi
     ];
 
     nixos = {
