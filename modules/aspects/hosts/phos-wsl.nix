@@ -11,6 +11,7 @@
       den.aspects.common
       den.aspects.binfmt
       den.aspects.nix-dev
+      den.aspects.rust
       den.aspects.comin
     ];
 
