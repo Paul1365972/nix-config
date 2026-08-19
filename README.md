@@ -32,6 +32,11 @@ nix run .#provision-phos-wsl    # -> result-phos-wsl.tar.gz ; wsl --import
 nix run .#provision-saber -- root@saber   # deploy via nixos-anywhere
 ```
 
+## Agent skills
+
+Claude Code and Codex skills live in [`skills/`](skills/), linked into both agents on rebuild.
+Windows needs linking by hand: [`skills/README.md`](skills/README.md).
+
 ## Secrets
 
 Encrypted with [sops-nix](https://github.com/Mic92/sops-nix) and committed.
