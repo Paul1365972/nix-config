@@ -1,7 +1,6 @@
 # `nix run .#vm` boots the phos config in QEMU for live testing without rebooting the host.
 { inputs, ... }:
 {
-  # Make phos bootable as VM
   den.aspects.phos.nixos =
     { modulesPath, ... }:
     {
