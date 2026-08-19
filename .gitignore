@@ -1,3 +1,6 @@
 # Nix build output
 /result
 /result-*
+
+# Cloned by scripts/clone-references.sh
+/references/
