@@ -1,5 +1,4 @@
-# Named visual styles for the desktop. Each rice is built as a NixOS
-# specialisation so `rice <name>` switches live without a full rebuild.
+# Each rice is a NixOS specialisation, so `rice <name>` switches live without a full rebuild.
 { lib, ... }:
 let
   rices = {

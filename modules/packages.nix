@@ -1,11 +1,3 @@
-# Raw host images and provision-* wrappers that bake in the host's sops key.
-# provision-* scripts read the master key from /var/lib/sops-nix/key.txt.
-#
-# nix build .#installer-iso
-# nix build .#darkness-sd-image
-# nix run .#provision-darkness
-# nix run .#provision-phos-wsl
-# nix run .#provision-saber -- root@saber
 { inputs, ... }:
 {
   perSystem =
