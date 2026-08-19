@@ -1,6 +1,6 @@
 # References
 
-Den, dendritic, and related libraries are vendored as submodules under `references/repos/`. This file collects everything else.
+`scripts/clone-references.sh` clones den, dendritic, and related sources into `references/repos/`, which is gitignored. Rerun it to update them. This file collects everything else.
 
 ## Option search
 - [NixOS Options](https://search.nixos.org/options)
