@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Shutdown
-Icon=system-shutdown
-Exec=sudo shutdown -h now
-Terminal=false

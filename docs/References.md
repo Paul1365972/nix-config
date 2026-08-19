@@ -1,6 +1,6 @@
 # References
 
-Den, dendritic, and related libraries live as submodules under `docs/repos/`. This file collects everything else.
+Den, dendritic, and related libraries are vendored as submodules under `references/repos/`. This file collects everything else.
 
 ## Option search
 - [NixOS Options](https://search.nixos.org/options)
