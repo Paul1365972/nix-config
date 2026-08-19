@@ -8,6 +8,7 @@
       den.aspects.yazi
       den.aspects.nh
       den.aspects.ssh
+      den.aspects.agents
     ];
 
     nixos =
