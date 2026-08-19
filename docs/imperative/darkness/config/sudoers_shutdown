@@ -1,1 +1,0 @@
-paul ALL=(ALL) NOPASSWD: /sbin/shutdown
