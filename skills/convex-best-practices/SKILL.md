@@ -1,6 +1,6 @@
 ---
 name: convex-best-practices
-description: Audit Convex functions against the official best practices.
+description: Audit Convex functions against the official best practices. Use only when explicitly invoked.
 disable-model-invocation: true
 argument-hint: [path or nothing for the whole project]
 ---

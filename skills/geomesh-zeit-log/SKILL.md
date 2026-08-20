@@ -1,6 +1,6 @@
 ---
 name: geomesh-zeit-log
-description: Log worked time into the GeoMesh Zeiterfassung via its HTTP API.
+description: Log worked time into the GeoMesh Zeiterfassung via its HTTP API. Use only when explicitly invoked.
 disable-model-invocation: true
 argument-hint: [scope, e.g. "heute" or "add meeting from 13:30, 3h"]
 allowed-tools: Bash, Read, Grep, Glob, AskUserQuestion

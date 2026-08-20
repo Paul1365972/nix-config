@@ -1,6 +1,6 @@
 ---
 name: no-effect
-description: Find React effects that should not exist and remove them.
+description: Find React effects that should not exist and remove them. Use only when explicitly invoked.
 disable-model-invocation: true
 argument-hint: [path or nothing for the whole project]
 ---
