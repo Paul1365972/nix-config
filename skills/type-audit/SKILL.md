@@ -1,6 +1,6 @@
 ---
 name: type-audit
-description: Audit TypeScript for unsound types and hacky as casts.
+description: Audit TypeScript for unsound types and hacky as casts. Use only when explicitly invoked.
 disable-model-invocation: true
 argument-hint: [path or nothing for the whole project]
 ---
