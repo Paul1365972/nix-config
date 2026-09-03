@@ -6,20 +6,9 @@
         enable = true;
         # 8082 collides with traccar.
         listenPort = 8088;
-        allowedHosts = "1365972.xyz";
+        allowedHosts = "dashboard.echidna-ghost.ts.net";
 
         services = [
-          {
-            "Infra" = [
-              {
-                "Authentik" = {
-                  description = "SSO / identity";
-                  href = "https://authentik.1365972.xyz";
-                  icon = "authentik.svg";
-                };
-              }
-            ];
-          }
           {
             "Apps" = [
               {
@@ -46,35 +35,35 @@
               {
                 "Synapse Admin" = {
                   description = "Matrix admin UI";
-                  href = "https://matrix-admin.1365972.xyz";
+                  href = "https://matrix-admin.echidna-ghost.ts.net";
                   icon = "matrix.svg";
                 };
               }
               {
                 "Maubot" = {
                   description = "Matrix bots";
-                  href = "https://maubot.1365972.xyz";
+                  href = "https://maubot.echidna-ghost.ts.net/_matrix/maubot/";
                   icon = "matrix.svg";
                 };
               }
               {
                 "Traccar" = {
                   description = "GPS tracking";
-                  href = "https://traccar.1365972.xyz";
+                  href = "https://traccar.echidna-ghost.ts.net";
                   icon = "traccar.svg";
                 };
               }
               {
                 "Home Assistant" = {
                   description = "Smart home";
-                  href = "https://home.1365972.xyz";
+                  href = "https://home-assistant.echidna-ghost.ts.net";
                   icon = "home-assistant.svg";
                 };
               }
               {
                 "Zigbee2MQTT" = {
                   description = "Zigbee mesh admin";
-                  href = "https://zigbee.1365972.xyz";
+                  href = "https://zigbee.echidna-ghost.ts.net";
                   icon = "zigbee2mqtt.svg";
                 };
               }
@@ -90,6 +79,8 @@
           };
         };
       };
+
+      services.tailscale.serve.services.dashboard.endpoints."tcp:443" = "http://127.0.0.1:8088";
     };
   };
 }

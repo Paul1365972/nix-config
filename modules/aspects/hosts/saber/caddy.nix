@@ -27,28 +27,7 @@
             acme_dns cloudflare {env.CF_API_TOKEN}
           '';
 
-          # Imported by every vhost that should sit behind Authentik forward-auth.
-          extraConfig = ''
-            (authentik) {
-              reverse_proxy /outpost.goauthentik.io/* http://127.0.0.1:9000
-              forward_auth http://127.0.0.1:9000 {
-                uri /outpost.goauthentik.io/auth/caddy
-                copy_headers X-Authentik-Username X-Authentik-Groups X-Authentik-Email X-Authentik-Name X-Authentik-Uid X-Authentik-Jwt X-Authentik-Meta-Jwks X-Authentik-Meta-Outpost X-Authentik-Meta-Provider X-Authentik-Meta-App X-Authentik-Meta-Version
-                trusted_proxies private_ranges
-              }
-            }
-          '';
-
           virtualHosts = {
-            "1365972.xyz".extraConfig = ''
-              import authentik
-              reverse_proxy http://127.0.0.1:8088
-            '';
-
-            "authentik.1365972.xyz".extraConfig = ''
-              reverse_proxy http://127.0.0.1:9000
-            '';
-
             "matrix.1365972.xyz".extraConfig = ''
               reverse_proxy http://127.0.0.1:8008
             '';
@@ -59,15 +38,11 @@
               try_files {path} /index.html
             '';
 
-            "matrix-admin.1365972.xyz".extraConfig = ''
-              import authentik
+            ":8091".extraConfig = ''
+              bind 127.0.0.1
               root * ${pkgs.synapse-admin}
               file_server
               try_files {path} /index.html
-            '';
-
-            "maubot.1365972.xyz".extraConfig = ''
-              reverse_proxy http://127.0.0.1:29316
             '';
 
             "jellyfin.1365972.xyz".extraConfig = ''
@@ -91,21 +66,10 @@
 
               reverse_proxy 127.0.0.1:8080
             '';
-
-            "traccar.1365972.xyz".extraConfig = ''
-              reverse_proxy http://127.0.0.1:8082
-            '';
-
-            "home.1365972.xyz".extraConfig = ''
-              reverse_proxy http://127.0.0.1:8123
-            '';
-
-            "zigbee.1365972.xyz".extraConfig = ''
-              import authentik
-              reverse_proxy http://127.0.0.1:8089
-            '';
           };
         };
+
+        services.tailscale.serve.services.matrix-admin.endpoints."tcp:443" = "http://127.0.0.1:8091";
 
         systemd.services.caddy.serviceConfig.EnvironmentFile = config.sops.secrets.caddy-env.path;
       };

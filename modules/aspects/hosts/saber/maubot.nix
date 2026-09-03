@@ -11,10 +11,11 @@
           settings = {
             database = "postgresql:///maubot?host=/run/postgresql";
             server = {
-              public_url = "https://maubot.1365972.xyz";
+              public_url = "https://maubot.echidna-ghost.ts.net";
               hostname = "127.0.0.1";
               port = 29316;
             };
+            admins.paul = "$2b$10$NDBn0mi32Oe0D29b78HxHeiFxaIiXiStrpXkY/4gXNTWdZh8/trJq";
             plugin_directories = {
               upload = "/var/lib/maubot/plugins";
               load = [ "/var/lib/maubot/plugins" ];
@@ -22,6 +23,8 @@
             };
           };
         };
+
+        services.tailscale.serve.services.maubot.endpoints."tcp:443" = "http://127.0.0.1:29316";
       };
   };
 }

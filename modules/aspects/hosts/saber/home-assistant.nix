@@ -25,17 +25,22 @@
         config = {
           default_config = { };
 
-          http = {
-            server_host = "127.0.0.1";
-            use_x_forwarded_for = true;
-            trusted_proxies = [ "127.0.0.1" ];
-          };
-
           homeassistant = {
             name = "Home";
             time_zone = "Europe/Berlin";
             country = "DE";
             unit_system = "metric";
+            auth_providers = [
+              { type = "homeassistant"; }
+              {
+                type = "trusted_networks";
+                trusted_networks = [
+                  "100.64.0.0/10"
+                  "fd7a:115c:a1e0::/48"
+                ];
+                allow_bypass_login = true;
+              }
+            ];
           };
 
           # Space-suffix keys let HA merge these YAML-file backed sections with the declarative one above.
@@ -44,6 +49,8 @@
           "scene ui" = "!include scenes.yaml";
         };
       };
+
+      services.tailscale.serve.services.home-assistant.endpoints."tcp:443" = "http://127.0.0.1:8123";
     };
   };
 }

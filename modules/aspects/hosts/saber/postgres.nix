@@ -5,7 +5,6 @@
       { pkgs, lib, ... }:
       let
         services = [
-          "authentik"
           "synapse"
           "traccar"
           "maubot"

@@ -1,5 +1,6 @@
 // Tailnet policy for paul1365972.github — managed via GitOps, do not edit in the admin console.
 // Tags: saber = tag:server + tag:exit, darkness = tag:server.
+// Tailscale Services (svc:*) are defined via the Tailscale API (PUT /vip-services/svc:<name>) and served from saber via services.tailscale.serve.
 {
     "tagOwners": {
         "tag:server": ["autogroup:admin"],
@@ -13,6 +14,12 @@
         { "src": ["tag:server"], "dst": ["tag:server"], "ip": ["*"] },
         // CLIProxyAPI VIP service.
         { "src": ["autogroup:member"], "dst": ["svc:cpamc"], "ip": ["tcp:8317"] },
+        // Admin web UIs: tailnet-only, no public vhost and no forward-auth.
+        {
+            "src": ["autogroup:member"],
+            "dst": ["svc:dashboard", "svc:matrix-admin", "svc:zigbee", "svc:maubot", "svc:home-assistant", "svc:traccar"],
+            "ip":  ["tcp:443"],
+        },
         // Taildrive: every device may use every device's shares.
         {
             "src": ["*"],
@@ -37,7 +44,15 @@
     ],
 
     "autoApprovers": {
-        "services": { "svc:cpamc": ["tag:server"] },
+        "services": {
+            "svc:cpamc":          ["tag:server"],
+            "svc:dashboard":      ["tag:server"],
+            "svc:matrix-admin":   ["tag:server"],
+            "svc:zigbee":         ["tag:server"],
+            "svc:maubot":         ["tag:server"],
+            "svc:home-assistant": ["tag:server"],
+            "svc:traccar":        ["tag:server"],
+        },
         "exitNode": ["tag:exit"],
     },
 }
