@@ -1,29 +1,24 @@
 # Repository Guidelines
 
-[docs/References.md](docs/References.md) indexes source material; `scripts/clone-references.sh` clones den, dendritic and the rest into the ignored `references/repos/`.
-Derive den and Nix behaviour from `references/`, never from memory.
-Docs are terse declarative records of goals, decisions, vocabulary, and open questions; they never narrate process, explain their own composition, justify absences, or repeat what a referenced source answers.
-
-Hosts and their systems are declared in [modules/den.nix](modules/den.nix); [README.md](README.md) carries the build, provisioning, secrets, and skill-linking commands.
-Run Nix from the Windows host with `wsl --cd "<repo>" -- <cmd>`: the NixOS instance is `phos-wsl`, and binfmt builds any host, aarch64 included.
-
-## Vocabulary
-
-An **entity** (`den.hosts.<sys>.<name>`, `den.homes.<sys>.<who>`) resolves by collecting the **aspect** of the same name (`den.aspects.<name>`).
-Class keys (`nixos`, `homeManager`) become modules for the entity.
-Aspects compose via `includes`, nest under `provides`, and take `{ host, user }` context when parametric.
-**Batteries** (`den.batteries.*`) are reusable aspects shipped by den.
+NixOS and home-manager configs for four hosts, composed with the den aspect pattern over a dendritic flake-parts tree.
+Every file under `modules/` is auto-imported, declares one `den.aspects.<name>`, and reaches a host through [modules/den.nix](modules/den.nix); comin deploys `main` to every host, so a push is a deploy.
 
 ## Working Rules
 
-- `flake.nix` is generated: change `flake-file.inputs.*` in the consuming module, then `nix run .#write-flake`.
-- Declare an input beside its consumer; `modules/inputs.nix` is for universal ones only.
-- `modules/` holds `.nix` and nothing else. import-tree auto-imports every file under it, and the option key is always `den.aspects.<name>`.
-- Non-nix data gets a top-level directory per domain (`skills/`, `secrets/`, `scripts/`, `policy.hujson`), reached via `inputs.self + "/…"` the way `ssh.nix` reads `secrets/public.toml`.
-- Reach for `den.batteries.X` and `den.aspects.X` directly in `includes`.
-- Write self-explanatory code with no comments; a comment means the code is not readable enough. The rare exception is a constraint the code cannot express, such as a hardware quirk or an upstream bug.
-- Prefer declaring a thing over scripting it. A command run once belongs in a README; a repeated multi-step fetch or migration belongs in `scripts/`.
-- Fetched material is never committed. Clone it into an ignored directory from a script that pins the source list.
+- Great, not good: build the end state as if the config had always been designed for it, refactoring or deleting whatever stands in the way.
+- Write self-explanatory code with no comments; a comment means the code is not readable enough. The rare exception is a constraint the code cannot express.
+- Prefer declaring a thing over scripting it: a command run once belongs in the README, a repeated fetch or migration in `scripts/`.
+- Get the nouns and verbs right; no abbreviations; units and qualifiers last, by descending significance.
+- Docs are terse declarative records of goals, decisions, vocabulary, and open questions, each fact in exactly one place.
+
+## Codebase
+
+- An **entity** (`den.hosts.<sys>.<name>`, `den.homes.<sys>.<who>`) collects the **aspect** of the same name, whose class keys (`nixos`, `homeManager`) become its modules; aspects compose via `includes`, nest under `provides`, and take `{ host, user }` context when parametric. **Batteries** (`den.batteries.*`) ship with den.
+- `flake.nix` is generated: change `flake-file.inputs.*` beside the consumer, then `nix run .#write-flake`.
+- An aspect's assets sit beside it; data spanning aspects gets a top-level directory (`skills/`, `secrets/`, `scripts/`, `policy.hujson`), reached via `inputs.self + "/…"`.
+- `references/repos/` is gitignored, filled by `scripts/clone-references.sh`, and is where den and Nix behaviour comes from, never memory; [docs/References.md](docs/References.md) indexes the rest.
+- `saber` is the only public host: Caddy terminates its vhosts, admin UIs are tailnet-only Tailscale Services granted in `policy.hujson`.
+- [README.md](README.md) has the build, provisioning, secrets, and skill commands. Run Nix from Windows with `wsl --cd "<repo>" -- <cmd>`; binfmt on `phos-wsl` builds any host.
 
 ## Workflow
 

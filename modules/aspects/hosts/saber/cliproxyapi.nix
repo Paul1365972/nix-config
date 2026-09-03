@@ -57,6 +57,8 @@
           };
         };
 
+        services.tailscale.serve.services.cpamc.endpoints."tcp:8317" = "tcp://127.0.0.1:8317";
+
         networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 8317 ];
       };
   };

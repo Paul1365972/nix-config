@@ -33,6 +33,8 @@
           availability = true;
         };
       };
+
+      services.tailscale.serve.services.zigbee.endpoints."tcp:443" = "http://127.0.0.1:8089";
     };
   };
 }

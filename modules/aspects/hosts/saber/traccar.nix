@@ -15,19 +15,14 @@
               password = "$DB_PASSWORD";
             };
             web = {
+              address = "127.0.0.1";
               port = "8082";
-              origin = "https://traccar.1365972.xyz";
-            };
-            openid = {
-              clientId = "yIsUke6CGrp73skB1lKeOPcyain6iFYQyfGJbeeB";
-              clientSecret = "$OPENID_CLIENT_SECRET";
-              issuerUrl = "https://authentik.1365972.xyz/application/o/traccar/";
-              force = "false";
-              allowGroup = "traccar";
-              adminGroup = "traccar_admins";
+              origin = "https://traccar.echidna-ghost.ts.net";
             };
           };
         };
+
+        services.tailscale.serve.services.traccar.endpoints."tcp:443" = "http://127.0.0.1:8082";
 
         # services.traccar uses DynamicUser; route env access via the keys group.
         systemd.services.traccar.serviceConfig.SupplementaryGroups = [ "keys" ];

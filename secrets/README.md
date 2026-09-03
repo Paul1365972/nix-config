@@ -7,7 +7,7 @@ The `*.yaml` files here are committed (encrypted); private keys never are.
 |------|-------|-------------|
 | `common.yaml`   | login hash | admin, phos, phos-wsl, darkness, saber |
 | `darkness.yaml` | WiFi PSK, Tailscale auth key | admin, phos, phos-wsl, darkness |
-| `saber.yaml`    | service secrets (Caddy, Authentik, Synapse, …), Tailscale auth key | admin, phos, phos-wsl, saber |
+| `saber.yaml`    | service secrets (Caddy, Synapse, …), Tailscale auth key | admin, phos, phos-wsl, saber |
 | `keys.yaml`     | every host's private age key (for provisioning) | admin, phos, phos-wsl |
 
 `darkness` and `saber` are left out of `keys.yaml` so a stolen Pi or server can't read the other identities.
