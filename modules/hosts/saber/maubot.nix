@@ -23,6 +23,11 @@ _: {
           };
         };
 
+        systemd.services.maubot = {
+          requires = [ "postgresql.target" ];
+          after = [ "postgresql.target" ];
+        };
+
         services.tailscale.serve.services.maubot.endpoints."tcp:443" = "http://127.0.0.1:29316";
       };
   };

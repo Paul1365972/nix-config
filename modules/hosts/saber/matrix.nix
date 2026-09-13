@@ -29,6 +29,11 @@
           extraConfigFiles = [ config.sops.secrets.synapse-secrets.path ];
         };
 
+        systemd.services.matrix-synapse = {
+          requires = [ "postgresql.target" ];
+          after = [ "postgresql.target" ];
+        };
+
         sops.secrets.synapse-secrets = {
           sopsFile = inputs.self + "/secrets/saber.yaml";
           owner = "matrix-synapse";

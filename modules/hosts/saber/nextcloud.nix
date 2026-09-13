@@ -13,6 +13,7 @@
           configureRedis = true;
           appstoreEnable = true;
           maxUploadSize = "2G";
+          database.createLocally = true;
 
           config = {
             dbtype = "pgsql";
