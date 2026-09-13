@@ -1,0 +1,50 @@
+// Tags: saber = tag:server + tag:exit, darkness = tag:server.
+// Tailscale Services (svc:*) are created through the API (PUT /vip-services/svc:<name>) and served from saber by services.tailscale.serve.
+{
+    "tagOwners": {
+        "tag:server": ["autogroup:admin"],
+        "tag:exit":   ["autogroup:admin"],
+    },
+
+    "grants": [
+        { "src": ["autogroup:member"], "dst": ["*"], "ip": ["*"] },
+        { "src": ["tag:server"], "dst": ["tag:server"], "ip": ["*"] },
+        {
+            "src": ["autogroup:member"],
+            "dst": ["svc:dashboard", "svc:matrix-admin", "svc:zigbee", "svc:maubot", "svc:home-assistant", "svc:traccar"],
+            "ip":  ["tcp:443"],
+        },
+        {
+            "src": ["*"],
+            "dst": ["*"],
+            "app": { "tailscale.com/cap/drive": [{ "shares": ["*"], "access": "rw" }] },
+        },
+    ],
+
+    "nodeAttrs": [
+        { "target": ["autogroup:member"], "attr": ["funnel"] },
+        // Tagged servers are not autogroup:member, so Taildrive lists them explicitly.
+        { "target": ["autogroup:member", "tag:server"], "attr": ["drive:share", "drive:access"] },
+    ],
+
+    "ssh": [
+        {
+            "src":    ["autogroup:member"],
+            "dst":    ["autogroup:self", "tag:server"],
+            "users":  ["root", "autogroup:nonroot"],
+            "action": "accept",
+        },
+    ],
+
+    "autoApprovers": {
+        "services": {
+            "svc:dashboard":      ["tag:server"],
+            "svc:matrix-admin":   ["tag:server"],
+            "svc:zigbee":         ["tag:server"],
+            "svc:maubot":         ["tag:server"],
+            "svc:home-assistant": ["tag:server"],
+            "svc:traccar":        ["tag:server"],
+        },
+        "exitNode": ["tag:exit"],
+    },
+}

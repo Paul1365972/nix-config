@@ -3,7 +3,7 @@ name: Sync Tailscale ACLs
 on:
   push:
     branches: [ main ]
-    paths: [ "policy.hujson" ]
+    paths: [ "tailnet/policy.hujson" ]
   workflow_dispatch:
 
 jobs:
@@ -19,4 +19,5 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tailnet: ${{ secrets.TS_TAILNET }}
+          policy-file: tailnet/policy.hujson
           action: apply

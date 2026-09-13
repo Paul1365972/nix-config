@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: |
+    extra-substituters = https://nix-community.cachix.org https://nixos-raspberrypi.cachix.org
+    extra-trusted-public-keys = nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI=
+    accept-flake-config = true
+
+jobs:
+  check:
+    name: Evaluate and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: nix flake check --all-systems -L
+
+  build:
+    name: Build ${{ matrix.host }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: phos
+            runner: ubuntu-latest
+          - host: phos-wsl
+            runner: ubuntu-latest
+          - host: saber
+            runner: ubuntu-latest
+          - host: darkness
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt /usr/local/lib/android /usr/share/dotnet
+          df -h
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: nix build .#nixosConfigurations.${{ matrix.host }}.config.system.build.toplevel -L --no-link
+
+  images:
+    name: Build ${{ matrix.image }}
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: installer-iso
+            runner: ubuntu-latest
+            glob: iso/*.iso
+          - image: darkness-sd-image
+            runner: ubuntu-24.04-arm
+            glob: sd-image/*.img.zst
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /opt /usr/local/lib/android /usr/share/dotnet
+          df -h
+      - uses: actions/checkout@v6
+      - uses: DeterminateSystems/nix-installer-action@main
+      - run: nix build .#${{ matrix.image }} -L
+      - run: mkdir artifacts && cp -L result/${{ matrix.glob }} artifacts/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.image }}
+          path: artifacts/*
+          retention-days: 30
+          compression-level: 0
