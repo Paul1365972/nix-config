@@ -12,6 +12,7 @@
           sopsFile = inputs.self + "/secrets/saber.yaml";
           owner = "caddy";
           mode = "0440";
+          restartUnits = [ "caddy.service" ];
         };
 
         services.caddy = {

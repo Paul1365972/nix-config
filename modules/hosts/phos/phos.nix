@@ -6,6 +6,8 @@
     includes = with den.aspects; [
       common
       comin
+      ssh-identities
+      agents
       binfmt
       audio
       bluetooth

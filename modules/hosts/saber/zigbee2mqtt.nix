@@ -1,6 +1,8 @@
-_: {
-  den.aspects.saber.provides.zigbee2mqtt = {
-    nixos = {
+{ inputs, ... }:
+{
+  den.aspects.saber.provides.zigbee2mqtt.nixos =
+    { config, ... }:
+    {
       services.zigbee2mqtt = {
         enable = true;
         settings = {
@@ -33,7 +35,13 @@ _: {
         };
       };
 
+      # The network key rides in as ZIGBEE2MQTT_CONFIG_ADVANCED_NETWORK_KEY; changing it also forces every device to re-join.
+      sops.secrets.zigbee-env = {
+        sopsFile = inputs.self + "/secrets/saber.yaml";
+        restartUnits = [ "zigbee2mqtt.service" ];
+      };
+      systemd.services.zigbee2mqtt.serviceConfig.EnvironmentFile = config.sops.secrets.zigbee-env.path;
+
       services.tailscale.serve.services.zigbee.endpoints."tcp:443" = "http://127.0.0.1:8089";
     };
-  };
 }
