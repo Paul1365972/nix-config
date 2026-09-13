@@ -25,7 +25,11 @@
         services.tailscale.serve.services.traccar.endpoints."tcp:443" = "http://127.0.0.1:8082";
 
         # services.traccar uses DynamicUser; route env access via the keys group.
-        systemd.services.traccar.serviceConfig.SupplementaryGroups = [ "keys" ];
+        systemd.services.traccar = {
+          requires = [ "postgresql.target" ];
+          after = [ "postgresql.target" ];
+          serviceConfig.SupplementaryGroups = [ "keys" ];
+        };
         sops.secrets.traccar-env = {
           sopsFile = inputs.self + "/secrets/saber.yaml";
           group = "keys";

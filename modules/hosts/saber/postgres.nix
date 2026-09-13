@@ -7,7 +7,6 @@ _: {
           "synapse"
           "traccar"
           "maubot"
-          "nextcloud"
         ];
       in
       {

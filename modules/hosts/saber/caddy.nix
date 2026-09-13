@@ -62,18 +62,25 @@
               reverse_proxy http://127.0.0.1:8096
             '';
 
-            # WebDAV CORS so Obsidian (and other 3rd-party clients) can talk to /remote.php/dav/*.
+            # WebDAV CORS for desktop and mobile apps that embed a browser engine (Obsidian, Capacitor apps).
             "nextcloud.1365972.xyz".extraConfig = ''
-              @webdav path /remote.php/dav/*
+              @webdav {
+                path /remote.php/dav/*
+                header Origin app://obsidian.md
+                header Origin capacitor://localhost
+              }
               header @webdav {
                 Access-Control-Allow-Origin "{http.request.header.Origin}"
                 Access-Control-Allow-Methods "GET, POST, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND, PROPPATCH, OPTIONS"
                 Access-Control-Allow-Headers "Authorization, Content-Type, Depth, If-Match, If-Modified-Since, If-None-Match, Lock-Token, Timeout"
                 Access-Control-Allow-Credentials "true"
+                Vary Origin
               }
               @preflight {
                 method OPTIONS
                 path /remote.php/dav/*
+                header Origin app://obsidian.md
+                header Origin capacitor://localhost
               }
               respond @preflight 204
 
