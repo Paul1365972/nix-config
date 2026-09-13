@@ -45,11 +45,16 @@ _: {
     homeManager =
       { pkgs, config, ... }:
       {
+        xdg.userDirs = {
+          enable = true;
+          createDirectories = true;
+        };
+
         systemd.user.services.tailreceive = {
           Unit.Description = "File Receiver Service for Taildrop";
           Service = {
             UMask = "0077";
-            ExecStart = "${pkgs.tailscale}/bin/tailscale file get --verbose --loop --conflict=rename ${config.home.homeDirectory}/Downloads/";
+            ExecStart = "${pkgs.tailscale}/bin/tailscale file get --verbose --loop --conflict=rename ${config.xdg.userDirs.download}/";
           };
           Install.WantedBy = [ "default.target" ];
         };
