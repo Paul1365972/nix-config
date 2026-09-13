@@ -15,6 +15,8 @@
     includes = with den.aspects; [
       common
       comin
+      ssh-identities
+      agents
       binfmt
       nix-dev
       rust

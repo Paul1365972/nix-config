@@ -43,6 +43,7 @@ comin polls `main` on every host, so a merge is a deploy.
 CI evaluates everything and builds all four host closures; merge when it is green.
 To try a change on one host first, push it to `testing-<host>`: comin activates it without touching the bootloader, and a reboot or the next push to `main` undoes it.
 saber and darkness also run OpenSSH on the LAN as the way in when tailscaled is down.
+After a force-push, comin refuses the new head because it no longer descends from the deployed commit; on each host `rm /var/lib/comin/store.json && systemctl restart comin` makes it start over from the running system.
 
 ## Provisioning
 

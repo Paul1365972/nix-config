@@ -5,9 +5,10 @@ Recipients are declared in [`.sops.yaml`](.sops.yaml).
 
 | File | Holds | Readable by |
 |------|-------|-------------|
-| `common.yaml`   | login hash, SSH identities | admin, phos, phos-wsl, darkness, saber |
+| `common.yaml`   | login hash | admin, phos, phos-wsl, darkness, saber |
+| `workstations.yaml` | SSH identities | admin, phos, phos-wsl |
 | `darkness.yaml` | WiFi PSK, Tailscale auth key | admin, phos, phos-wsl, darkness |
-| `saber.yaml`    | service secrets (Caddy, Synapse, Nextcloud, Traccar, Cloudflare), Tailscale auth key | admin, phos, phos-wsl, saber |
+| `saber.yaml`    | service secrets (Caddy, Synapse, Nextcloud, Traccar, Zigbee, Cloudflare), Tailscale auth key | admin, phos, phos-wsl, saber |
 | `keys.yaml`     | every host's private age key, for provisioning | admin, phos, phos-wsl |
 | `public.toml`   | public keys, read in plaintext at evaluation | everyone |
 

@@ -4,29 +4,40 @@ let
 in
 {
   den.aspects.ssh = {
-    nixos =
-      let
-        key = {
+    nixos.users.users.paul.openssh.authorizedKeys.keys = [ pub.phos ];
+
+    homeManager.home.file = lib.mapAttrs' (
+      name: key: lib.nameValuePair ".ssh/${name}.pub" { text = "${key}\n"; }
+    ) pub;
+  };
+
+  den.aspects.ssh-identities = {
+    nixos.sops.secrets =
+      lib.genAttrs
+        [
+          "id_phos"
+          "id_github"
+          "id_opencode"
+          "geomesh-hetzner"
+        ]
+        (_: {
+          sopsFile = inputs.self + "/secrets/workstations.yaml";
           owner = "paul";
           mode = "0400";
-        };
-      in
-      {
-        sops.secrets.id_phos = key;
-        sops.secrets.id_github = key;
-        sops.secrets.geomesh-hetzner = key;
+        });
 
-        users.users.paul.openssh.authorizedKeys.keys = [ pub.phos ];
-      };
-
-    homeManager = {
+    provides.to-users.homeManager = {
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
         settings = {
           "github.com".IdentityFile = "/run/secrets/id_github";
-          "geomesh-hetzner 46.224.189.102" = {
-            HostName = "46.224.189.102";
+          "gitlab.opencode.de" = {
+            IdentityFile = "/run/secrets/id_opencode";
+            IdentitiesOnly = true;
+          };
+          "geomesh-hetzner 178.105.137.230" = {
+            HostName = "178.105.137.230";
             IdentityFile = "/run/secrets/geomesh-hetzner";
             User = "root";
           };
@@ -34,9 +45,14 @@ in
         };
       };
 
-      home.file = lib.mapAttrs' (
-        name: key: lib.nameValuePair ".ssh/${name}.pub" { text = "${key}\n"; }
-      ) pub;
+      programs.git = {
+        signing = {
+          format = "ssh";
+          key = "/run/secrets/id_github";
+          signByDefault = true;
+        };
+        settings.init.defaultBranch = "main";
+      };
     };
   };
 }

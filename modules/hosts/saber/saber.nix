@@ -44,7 +44,7 @@
           "${tailscale} serve --service=svc:${name} ${listener} ${target}";
       in
       {
-        services.tailscale.extraUpFlags = [ "--advertise-exit-node" ];
+        services.tailscale.extraSetFlags = [ "--advertise-exit-node" ];
         # --advertise-exit-node only works if the kernel forwards packets; useRoutingFeatures = "server" sets the v4/v6 forward sysctls.
         services.tailscale.useRoutingFeatures = "server";
 
