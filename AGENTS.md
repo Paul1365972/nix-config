@@ -13,9 +13,9 @@ comin deploys `main` to every host, so a push is a deploy.
 
 ## Codebase
 
-- A den **entity** (`den.hosts.<system>.<name>`, declared beside its aspect in `hosts/<name>/`) collects the **aspect** of the same name. An aspect's class keys (`nixos`, `homeManager`) become the entity's modules; `includes` composes aspects, `provides` nests them, `provides.to-users` reaches the host's users, and a parametric aspect takes `{ host, user }`.
-- Every `.nix` file under `flake/`, `hosts/`, `users/`, `features/` is auto-imported and declares one thing. `flake/` is flake-parts wiring only; everything den lives with its entity or in `features/`. Assets sit beside their aspect; data spanning aspects gets a top-level directory reached via `inputs.self + "/…"`.
-- `flake.nix` is generated: declare each `flake-file.inputs.<name>` beside its consumer (`flake/inputs.nix` when shared), then `nix run .#write-flake`.
+- A den **entity** (`den.hosts.<system>.<name>`, declared beside its aspect in `modules/hosts/<name>/`) collects the **aspect** of the same name. An aspect's class keys (`nixos`, `homeManager`) become the entity's modules; `includes` composes aspects, `provides` nests them, `provides.to-users` reaches the host's users, and a parametric aspect takes `{ host, user }`.
+- Every `.nix` file under `modules/` is auto-imported and declares one thing: `flake/` is flake-parts wiring only, `hosts/` and `users/` hold entities with their aspects, `features/` the aspects they share. Assets sit beside their aspect; data spanning aspects gets a top-level directory reached via `inputs.self + "/…"`.
+- `flake.nix` is generated: declare each `flake-file.inputs.<name>` beside its consumer (`modules/flake/inputs.nix` when shared), then `nix run .#write-flake`.
 - Look den and Nix behaviour up in `references/repos/` (gitignored, filled by `scripts/clone-references.sh`); [docs/References.md](docs/References.md) indexes the rest.
 - `saber` is the only public host: Caddy terminates its vhosts; admin UIs are tailnet-only Tailscale Services granted in `tailnet/policy.hujson`.
 - Nix runs from Windows through `wsl --cd "<repo>" -- <cmd>`; binfmt on `phos-wsl` builds any host. [README.md](README.md) has the build, deploy, provisioning, secrets, and skill commands.
