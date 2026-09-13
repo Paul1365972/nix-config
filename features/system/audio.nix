@@ -1,0 +1,12 @@
+_: {
+  den.aspects.audio = {
+    nixos = {
+      security.rtkit.enable = true;
+      services.pipewire = {
+        enable = true;
+        alsa.enable = true;
+        pulse.enable = true;
+      };
+    };
+  };
+}
