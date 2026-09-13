@@ -15,10 +15,10 @@ NixOS and home-manager configs for four hosts, composed with the [den](https://g
 
 | Directory | Holds |
 |-----------|-------|
-| `flake/` | How the flake is assembled: inputs, outputs, formatter. Nothing den. |
-| `hosts/<name>/` | The host entity and aspect: includes, hardware, disks, services, provisioning, assets |
-| `users/<name>/` | The user aspect: packages, SSH identities, agent skills |
-| `features/` | Aspects shared across hosts and users |
+| `modules/flake/` | How the flake is assembled: inputs, formatter. Nothing den. |
+| `modules/hosts/<name>/` | The host entity and aspect: includes, hardware, disks, services, provisioning, assets |
+| `modules/users/<name>/` | The user aspect: packages, SSH identities, agent skills |
+| `modules/features/` | Aspects shared across hosts and users |
 | `secrets/` | sops files and their recipients |
 | `tailnet/` | Tailscale policy, applied by CI |
 | `scripts/` | Repeated fetches |
@@ -58,16 +58,16 @@ nix build .#installer-iso                 # x86 live installer, for phos
 
 The `images` CI job builds the plain image and the installer on manual dispatch.
 
-phos: [`hosts/phos/disko.nix`](hosts/phos/disko.nix) is the layout for the full install (LUKS, btrfs, swapfile).
+phos: [`modules/hosts/phos/disko.nix`](modules/hosts/phos/disko.nix) is the layout for the full install (LUKS, btrfs, swapfile).
 Dual boot needs a hand-made partition instead of disko; keep the same subvolumes so the config stays identical.
 
 ## Agent skills
 
-Skills live in [`users/paul/skills/`](users/paul/skills/), one directory per skill, and reach Claude Code and Codex on NixOS hosts through home-manager.
+Skills live in [`modules/users/paul/skills/`](modules/users/paul/skills/), one directory per skill, and reach Claude Code and Codex on NixOS hosts through home-manager.
 Windows cannot run Nix; link them once:
 
 ```powershell
-Get-ChildItem D:\Programming\Projects\nix-config\users\paul\skills -Directory | ForEach-Object {
+Get-ChildItem D:\Programming\Projects\nix-config\modules\users\paul\skills -Directory | ForEach-Object {
   foreach ($agent in ".claude", ".codex") {
     New-Item -ItemType Junction -Force -Path "$HOME\$agent\skills\$($_.Name)" -Target $_.FullName
   }
@@ -83,5 +83,5 @@ sops-nix with one age key per host, committed encrypted. Setup and recipients: [
 
 ## Backups
 
-saber copies its service state to the data HDD nightly with borg ([`hosts/saber/backup.nix`](hosts/saber/backup.nix)).
+saber copies its service state to the data HDD nightly with borg ([`modules/hosts/saber/backup.nix`](modules/hosts/saber/backup.nix)).
 That covers an SSD failure or a bad upgrade, not a dead HDD.

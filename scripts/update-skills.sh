@@ -2,7 +2,7 @@
 # Diffs every vendored skill body against its metadata.source URL.
 set -eu
 
-skills_dir=$(cd "$(dirname "$0")/.." && pwd)/users/paul/skills
+skills_dir=$(cd "$(dirname "$0")/.." && pwd)/modules/users/paul/skills
 body() { awk 'f>=2 { print } /^---$/ { f++ }' "$1"; }
 
 for skill in "$skills_dir"/*/SKILL.md; do
