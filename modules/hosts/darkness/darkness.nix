@@ -16,12 +16,6 @@
       desktop
     ];
 
-    provides.to-users.includes = with den.aspects.darkness.provides; [
-      taildrive
-      audio
-      desktop
-    ];
-
     nixos = {
       imports = with inputs.nixos-raspberrypi.nixosModules; [
         raspberry-pi-5.base

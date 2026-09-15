@@ -84,5 +84,28 @@ sops-nix with one age key per host, committed encrypted. Setup and recipients: [
 
 ## Backups
 
-saber copies its service state to the data HDD nightly with borg ([`modules/hosts/saber/backup.nix`](modules/hosts/saber/backup.nix)).
-That covers an SSD failure or a bad upgrade, not a dead HDD.
+saber archives service state to the data HDD at 03:30 with [Borg](modules/hosts/saber/backup.nix). Each service declares its paths, exclusions, and units to pause beside its configuration.
+
+The job records running units, enables Nextcloud maintenance mode when necessary, pauses application writers, deployment polling and automatic reboot scheduling, dumps PostgreSQL, and archives the paused state. Applications resume before pruning; cleanup also runs after failure or termination. Recovery records survive reboots. Previously stopped services and pre-existing Nextcloud maintenance mode stay unchanged.
+
+```bash
+sudo systemctl start borgbackup-job-hdd
+sudo journalctl -u borgbackup-job-hdd -u backup-recovery
+sudo borg-job-hdd list
+sudo systemctl start backup-recovery   # retry recovery after resolving its reported failure
+```
+
+Downtime lasts through the dump and archive creation; the first archive can take substantially longer. Avoid manual service starts or configuration switches during the backup. PostgreSQL stays running; its dump is included instead of its live data directory.
+
+### Restore exercise
+
+Use an isolated VM with PostgreSQL 17 and the application versions from the archived system's configuration revision. Never restore the exercise into the running server.
+
+1. Select an archive with `sudo borg-job-hdd list`, then run `sudo borg-job-hdd check --verify-data`.
+2. In an empty scratch directory, extract it with `sudo borg-job-hdd extract ::<archive>`; paths are relative to that directory.
+3. Restore `var/backup/postgresql/all.sql.zstd` into the disposable PostgreSQL instance, including its roles. Restore one application's state directory with its ownership preserved.
+4. Start the application and verify a login and a known record or file. For Nextcloud, disable the maintenance mode stored in the archive after restoring both its database and files.
+
+### Coverage
+
+The local repository protects SSD-held service state. HDD media, gallery data, and Matrix media need another device or an offsite destination; the backup HDD cannot protect itself. Selecting that destination and completing the first restore exercise remain open tasks.

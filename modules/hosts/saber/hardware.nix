@@ -1,5 +1,5 @@
 _: {
-  den.aspects.saber.provides.hardware = {
+  den.aspects.saber = {
     nixos =
       { pkgs, ... }:
       {
@@ -23,8 +23,6 @@ _: {
         };
 
         environment.systemPackages = [ pkgs.libva-utils ];
-
-        users.users.jellyfin.extraGroups = [ "render" ];
 
         # Laptop chassis running as a server: keep going when the lid is closed.
         services.logind.settings.Login = {

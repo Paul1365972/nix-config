@@ -1,5 +1,5 @@
 _: {
-  den.aspects.waybar.provides.to-users.homeManager =
+  den.aspects.hyprland-desktop.homeManager =
     { config, ... }:
     let
       c = config.theme.colors;

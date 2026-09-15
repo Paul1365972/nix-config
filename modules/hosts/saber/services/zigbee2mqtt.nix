@@ -3,6 +3,13 @@
   den.aspects.saber.provides.zigbee2mqtt.nixos =
     { config, ... }:
     {
+      services.borgbackup.jobs.hdd.paths = [ "/var/lib/zigbee2mqtt" ];
+      saber.backup.units = [ "zigbee2mqtt.service" ];
+      saber.dashboard.Zigbee2MQTT = {
+        description = "Zigbee mesh admin";
+        href = "https://zigbee.echidna-ghost.ts.net";
+        icon = "zigbee2mqtt.svg";
+      };
       services.zigbee2mqtt = {
         enable = true;
         settings = {

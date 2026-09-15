@@ -1,5 +1,5 @@
 _: {
-  den.aspects.hyprland.nixos =
+  den.aspects.hyprland-desktop.nixos =
     { pkgs, ... }:
     {
       programs.hyprland = {

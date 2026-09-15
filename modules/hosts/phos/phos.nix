@@ -6,23 +6,12 @@
     includes = with den.aspects; [
       common
       comin
-      ssh-identities
-      agents
       binfmt
-      audio
-      bluetooth
       hardening
+      network-performance
       zswap
       power
-      hyprland
-      autologin
-      theme
-      kitty
-      lock
-      notifications
-      clipboard
-      screenshot
-      waybar
+      hyprland-desktop
     ];
 
     nixos = {

@@ -3,6 +3,22 @@ _: {
     nixos =
       { pkgs, ... }:
       {
+        services.postgresql = {
+          ensureDatabases = [ "maubot" ];
+          ensureUsers = [
+            {
+              name = "maubot";
+              ensureDBOwnership = true;
+            }
+          ];
+        };
+        services.borgbackup.jobs.hdd.paths = [ "/var/lib/maubot" ];
+        saber.backup.units = [ "maubot.service" ];
+        saber.dashboard.Maubot = {
+          description = "Matrix bots";
+          href = "https://maubot.echidna-ghost.ts.net/_matrix/maubot/";
+          icon = "matrix.svg";
+        };
         services.maubot = {
           enable = true;
           # E2EE would pull in the insecure libolm

@@ -1,5 +1,5 @@
 _: {
-  den.aspects.nix-dev = {
+  den.aspects.nix-development = {
     nixos =
       { pkgs, ... }:
       {

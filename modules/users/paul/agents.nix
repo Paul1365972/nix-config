@@ -1,5 +1,5 @@
 _: {
-  den.aspects.agents.provides.to-users.homeManager = {
+  den.aspects.agents.homeManager = {
     programs.claude-code = {
       enable = true;
       skills = ./skills;

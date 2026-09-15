@@ -4,6 +4,36 @@
     nixos =
       { config, ... }:
       {
+        services.postgresql = {
+          ensureDatabases = [ "traccar" ];
+          ensureUsers = [
+            {
+              name = "traccar";
+              ensureDBOwnership = true;
+            }
+          ];
+        };
+        networking.firewall = {
+          allowedTCPPortRanges = [
+            {
+              from = 5000;
+              to = 5059;
+            }
+          ];
+          allowedUDPPortRanges = [
+            {
+              from = 5000;
+              to = 5059;
+            }
+          ];
+        };
+        services.borgbackup.jobs.hdd.paths = [ "/var/lib/private/traccar" ];
+        saber.backup.units = [ "traccar.service" ];
+        saber.dashboard.Traccar = {
+          description = "GPS tracking";
+          href = "https://traccar.echidna-ghost.ts.net";
+          icon = "traccar.svg";
+        };
         services.traccar = {
           enable = true;
           environmentFile = config.sops.secrets.traccar-env.path;
