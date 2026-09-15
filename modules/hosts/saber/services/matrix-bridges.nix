@@ -3,6 +3,10 @@ _: {
     nixos =
       { lib, ... }:
       {
+        saber.backup.units = [
+          "mautrix-signal.service"
+          "mautrix-whatsapp.service"
+        ];
         services.postgresql = {
           ensureDatabases = [
             "mautrixsignal"

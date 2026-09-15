@@ -1,6 +1,13 @@
 _: {
   den.aspects.saber.provides.home-assistant = {
     nixos = {
+      services.borgbackup.jobs.hdd.paths = [ "/var/lib/hass" ];
+      saber.backup.units = [ "home-assistant.service" ];
+      saber.dashboard."Home Assistant" = {
+        description = "Smart home";
+        href = "https://home-assistant.echidna-ghost.ts.net";
+        icon = "home-assistant.svg";
+      };
       # HA won't create these on first boot, but the !include entries below dereference them at startup.
       systemd.tmpfiles.rules = [
         "f /var/lib/hass/automations.yaml 0644 hass hass - []"

@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  den.aspects.saber.provides.disko = {
+  den.aspects.saber = {
     nixos = {
       imports = [ inputs.disko.nixosModules.disko ];
 

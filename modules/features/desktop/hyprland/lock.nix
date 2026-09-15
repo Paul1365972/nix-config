@@ -1,8 +1,8 @@
 _: {
-  den.aspects.lock = {
+  den.aspects.hyprland-desktop = {
     nixos.security.pam.services.hyprlock = { };
 
-    provides.to-users.homeManager =
+    homeManager =
       { config, ... }:
       let
         c = config.theme.colors;

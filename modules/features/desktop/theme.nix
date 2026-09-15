@@ -28,7 +28,7 @@ let
   };
 in
 {
-  den.aspects.theme.provides.to-users.homeManager =
+  den.aspects.theme.homeManager =
     { config, pkgs, ... }:
     {
       options.theme = {

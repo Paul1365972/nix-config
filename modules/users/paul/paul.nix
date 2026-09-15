@@ -3,19 +3,28 @@
   den.aspects.paul = {
     includes = [
       den.batteries.primary-user
+      den.batteries.host-aspects
       (den.batteries.user-shell "bash")
       den.aspects.helix
       den.aspects.yazi
       den.aspects.ssh
     ];
 
-    nixos =
-      { config, lib, ... }:
+    provides = {
+      phos.includes = [ den.aspects.workstation-user ];
+      phos-wsl = { user, ... }: {
+        includes = [ den.aspects.workstation-user ];
+        nixos.wsl.defaultUser = user.userName;
+      };
+    };
+
+    nixos.sops.secrets.user-password.neededForUsers = true;
+
+    user =
+      { osConfig, ... }:
       {
-        sops.secrets.user-password.neededForUsers = true;
-        users.users.paul.hashedPasswordFile = lib.mkIf (
-          config.sops.secrets ? user-password
-        ) config.sops.secrets.user-password.path;
+        hashedPasswordFile =
+          if osConfig.sops.secrets ? user-password then osConfig.sops.secrets.user-password.path else null;
       };
 
     homeManager =

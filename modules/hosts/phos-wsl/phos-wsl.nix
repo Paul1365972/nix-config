@@ -1,4 +1,4 @@
-{ den, ... }:
+{ den, inputs, ... }:
 {
   flake-file.inputs.nixos-wsl = {
     url = "github:nix-community/nixos-wsl";
@@ -7,7 +7,6 @@
   };
 
   den.hosts.x86_64-linux.phos-wsl = {
-    wsl.enable = true;
     users.paul = { };
   };
 
@@ -15,13 +14,15 @@
     includes = with den.aspects; [
       common
       comin
-      ssh-identities
-      agents
       binfmt
-      nix-dev
+      nix-development
       rust
     ];
 
-    nixos.wsl.interop.register = true;
+    nixos = {
+      imports = [ inputs.nixos-wsl.nixosModules.default ];
+      wsl.enable = true;
+      wsl.interop.register = true;
+    };
   };
 }

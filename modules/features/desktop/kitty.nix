@@ -1,5 +1,5 @@
 _: {
-  den.aspects.kitty.provides.to-users.homeManager =
+  den.aspects.kitty.homeManager =
     { config, ... }:
     let
       c = config.theme.colors;

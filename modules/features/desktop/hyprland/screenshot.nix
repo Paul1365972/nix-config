@@ -1,5 +1,5 @@
 _: {
-  den.aspects.screenshot.provides.to-users.homeManager =
+  den.aspects.hyprland-desktop.homeManager =
     { pkgs, ... }:
     {
       home.packages = with pkgs; [

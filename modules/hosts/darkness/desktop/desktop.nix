@@ -1,12 +1,5 @@
-{ den, ... }:
-{
+_: {
   den.aspects.darkness.provides.desktop = {
-    includes = with den.aspects.darkness.provides; [
-      labwc
-      waybar
-      den.aspects.autologin
-    ];
-
     nixos =
       { pkgs, ... }:
       {

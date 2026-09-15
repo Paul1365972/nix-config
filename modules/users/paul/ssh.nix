@@ -1,17 +1,22 @@
 { inputs, lib, ... }:
 let
-  pub = (builtins.fromTOML (builtins.readFile (inputs.self + "/secrets/public.toml"))).ssh.paul;
+  publicKeys = (builtins.fromTOML (builtins.readFile (inputs.self + "/secrets/public.toml"))).ssh;
 in
 {
-  den.aspects.ssh = {
-    nixos.users.users.paul.openssh.authorizedKeys.keys = [ pub.phos ];
+  den.aspects.ssh =
+    { user, ... }:
+    let
+      keys = publicKeys.${user.name};
+    in
+    {
+      user.openssh.authorizedKeys.keys = [ keys.phos ];
 
-    homeManager.home.file = lib.mapAttrs' (
-      name: key: lib.nameValuePair ".ssh/${name}.pub" { text = "${key}\n"; }
-    ) pub;
-  };
+      homeManager.home.file = lib.mapAttrs' (
+        name: key: lib.nameValuePair ".ssh/${name}.pub" { text = "${key}\n"; }
+      ) keys;
+    };
 
-  den.aspects.ssh-identities = {
+  den.aspects.ssh-identities = { user, ... }: {
     nixos.sops.secrets =
       lib.genAttrs
         [
@@ -22,11 +27,11 @@ in
         ]
         (_: {
           sopsFile = inputs.self + "/secrets/workstations.yaml";
-          owner = "paul";
+          owner = user.userName;
           mode = "0400";
         });
 
-    provides.to-users.homeManager = {
+    homeManager = {
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;

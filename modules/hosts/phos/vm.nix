@@ -6,7 +6,6 @@
 
       sops.age.keyFile = lib.mkForce null;
       sops.secrets = lib.mkForce { };
-      users.users.paul.initialPassword = "phos";
 
       virtualisation = {
         memorySize = 4096;

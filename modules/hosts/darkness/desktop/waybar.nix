@@ -1,5 +1,5 @@
 _: {
-  den.aspects.darkness.provides.waybar.homeManager =
+  den.aspects.darkness.provides.desktop.homeManager =
     { pkgs, ... }:
     let
       icons = "${pkgs.papirus-icon-theme}/share/icons/Papirus/24x24";

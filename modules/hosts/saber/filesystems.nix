@@ -1,5 +1,5 @@
 _: {
-  den.aspects.saber.provides.filesystems = {
+  den.aspects.saber = {
     nixos = {
       # The 1TB data disk outlives reinstalls; disko manages only the system SSD.
       fileSystems."/mnt/hdd" = {
@@ -11,19 +11,6 @@ _: {
         ];
       };
 
-      fileSystems."/var/lib/jellyfin/media" = {
-        device = "/mnt/hdd/media";
-        fsType = "none";
-        options = [ "bind" ];
-        depends = [ "/mnt/hdd" ];
-      };
-
-      fileSystems."/var/lib/matrix-synapse/media_store" = {
-        device = "/mnt/hdd/matrix-media";
-        fsType = "none";
-        options = [ "bind" ];
-        depends = [ "/mnt/hdd" ];
-      };
     };
   };
 }
