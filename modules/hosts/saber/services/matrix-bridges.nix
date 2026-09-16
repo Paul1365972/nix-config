@@ -3,7 +3,7 @@ _: {
     nixos =
       { lib, ... }:
       {
-        saber.backup.units = [
+        systemd.services.borgbackup-job-hdd.conflicts = [
           "mautrix-signal.service"
           "mautrix-whatsapp.service"
         ];

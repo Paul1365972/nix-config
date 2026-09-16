@@ -6,7 +6,7 @@ _: {
         file_server
         try_files {path} /index.html
       '';
-      saber.dashboard.Element = {
+      services.homepage-dashboard.entries.Element = {
         description = "Matrix chat client";
         href = "https://chat.1365972.xyz";
         icon = "element.svg";

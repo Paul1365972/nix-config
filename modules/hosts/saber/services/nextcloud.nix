@@ -5,58 +5,25 @@
       {
         config,
         pkgs,
-        lib,
         ...
       }:
       {
-        saber.backup.prepare = [
-          (pkgs.writeShellApplication {
-            name = "nextcloud-backup-prepare";
-            runtimeInputs = [
-              pkgs.coreutils
-              pkgs.jq
-            ];
-            text = ''
-              state="$1"
-              status="$(${lib.getExe config.services.nextcloud.occ} status --output=json)"
-              jq -e '.installed == true' <<< "$status" > /dev/null
-              if jq -e '.maintenance == false' <<< "$status" > /dev/null; then
-                touch "$state/nextcloud-maintenance"
-                ${lib.getExe config.services.nextcloud.occ} maintenance:mode --on
-              fi
-            '';
-          })
-        ];
-        saber.backup.resume = [
-          (pkgs.writeShellApplication {
-            name = "nextcloud-backup-resume";
-            runtimeInputs = [ pkgs.coreutils ];
-            text = ''
-              state="$1"
-              if [[ -e "$state/nextcloud-maintenance" ]]; then
-                ${lib.getExe config.services.nextcloud.occ} maintenance:mode --off
-                rm -- "$state/nextcloud-maintenance"
-              fi
-            '';
-          })
-        ];
-        services.borgbackup.jobs.hdd.paths = [ "/var/lib/nextcloud" ];
-        services.borgbackup.jobs.hdd.readWritePaths = [ config.services.nextcloud.home ];
-        systemd.services.backup-recovery = {
-          wants = [ "nextcloud-setup.service" ];
-          after = [ "nextcloud-setup.service" ];
-        };
-        saber.backup.units = [
-          "nextcloud-cron.timer"
-          "nextcloud-cron.service"
-          "nextcloud-setup.service"
-          "nextcloud-update-db.service"
-          "phpfpm-nextcloud.service"
-        ];
-        saber.dashboard.Nextcloud = {
+        services.homepage-dashboard.entries.Nextcloud = {
           description = "Files / calendar";
           href = "https://nextcloud.1365972.xyz";
           icon = "nextcloud.svg";
+        };
+        services.borgbackup.jobs.hdd.paths = [ "/var/lib/nextcloud" ];
+        systemd.services.borgbackup-job-hdd = {
+          conflicts = [
+            "nextcloud-cron.timer"
+            "nextcloud-cron.service"
+            "phpfpm-nextcloud.service"
+          ];
+          after = [
+            "nextcloud-setup.service"
+            "nextcloud-update-db.service"
+          ];
         };
         services.caddy.virtualHosts."nextcloud.1365972.xyz".extraConfig = ''
           @webdav {

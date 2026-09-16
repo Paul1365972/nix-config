@@ -13,12 +13,12 @@ _: {
           ];
         };
         services.borgbackup.jobs.hdd.paths = [ "/var/lib/maubot" ];
-        saber.backup.units = [ "maubot.service" ];
-        saber.dashboard.Maubot = {
+        services.homepage-dashboard.entries.Maubot = {
           description = "Matrix bots";
           href = "https://maubot.echidna-ghost.ts.net/_matrix/maubot/";
           icon = "matrix.svg";
         };
+        systemd.services.borgbackup-job-hdd.conflicts = [ "maubot.service" ];
         services.maubot = {
           enable = true;
           # E2EE would pull in the insecure libolm

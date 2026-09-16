@@ -58,12 +58,12 @@
           paths = [ "/var/lib/matrix-synapse" ];
           exclude = [ "/var/lib/matrix-synapse/media_store" ];
         };
-        saber.backup.units = [ "matrix-synapse.service" ];
-        saber.dashboard."Synapse Admin" = {
+        services.homepage-dashboard.entries."Synapse Admin" = {
           description = "Matrix admin UI";
           href = "https://matrix-admin.echidna-ghost.ts.net";
           icon = "matrix.svg";
         };
+        systemd.services.borgbackup-job-hdd.conflicts = [ "matrix-synapse.service" ];
         services.matrix-synapse = {
           enable = true;
 

@@ -6,7 +6,7 @@ NixOS and home-manager configs for four hosts, composed with the [den](https://g
 
 | Host | Role |
 |------|------|
-| `phos` | Laptop. Windows today, NixOS dual boot next; `nix run .#vm` boots the config in QEMU meanwhile. |
+| `phos` | Laptop: Windows today, NixOS dual boot next; `nix run .#vm` boots the config in QEMU meanwhile. |
 | `phos-wsl` | NixOS on WSL, the build and admin box. |
 | `darkness` | Raspberry Pi 5 kiosk. |
 | `saber` | Home lab server, the only public host. |
@@ -15,7 +15,7 @@ NixOS and home-manager configs for four hosts, composed with the [den](https://g
 
 | Directory | Holds |
 |-----------|-------|
-| `modules/flake/` | How the flake is assembled: inputs, formatter. Nothing den. |
+| `modules/flake/` | Flake assembly: inputs and formatter |
 | `modules/hosts/<name>/` | The host entity and aspect: includes, hardware, disks, services, provisioning, assets |
 | `modules/users/<name>/` | The user aspect: packages, SSH identities, agent skills |
 | `modules/features/` | Aspects shared across hosts and users |
@@ -80,32 +80,23 @@ Vendored skills record their origin in `metadata.source`; the frontmatter is loc
 
 ## Secrets
 
-sops-nix with one age key per host, committed encrypted. Setup and recipients: [`secrets/README.md`](secrets/README.md).
+sops-nix with one age key per host, committed encrypted.
+Setup and recipients: [`secrets/README.md`](secrets/README.md).
 
 ## Backups
 
-saber archives service state to the data HDD at 03:30 with [Borg](modules/hosts/saber/backup.nix). Each service declares its paths, exclusions, and units to pause beside its configuration.
-
-The job records running units, enables Nextcloud maintenance mode when necessary, pauses application writers, deployment polling and automatic reboot scheduling, dumps PostgreSQL, and archives the paused state. Applications resume before pruning; cleanup also runs after failure or termination. Recovery records survive reboots. Previously stopped services and pre-existing Nextcloud maintenance mode stay unchanged.
+saber backs up SSD service state to the HDD at 03:30.
+Applications stop for the PostgreSQL dump and the entire Borg job, including pruning, then start again on success or failure.
+This also starts any participating service that was manually stopped.
 
 ```bash
 sudo systemctl start borgbackup-job-hdd
-sudo journalctl -u borgbackup-job-hdd -u backup-recovery
+sudo journalctl -u borgbackup-job-hdd
 sudo borg-job-hdd list
-sudo systemctl start backup-recovery   # retry recovery after resolving its reported failure
+sudo borg-job-hdd check --verify-data
+sudo borg-job-hdd extract ::<archive>  # run in an empty restore directory
 ```
 
-Downtime lasts through the dump and archive creation; the first archive can take substantially longer. Avoid manual service starts or configuration switches during the backup. PostgreSQL stays running; its dump is included instead of its live data directory.
-
-### Restore exercise
-
-Use an isolated VM with PostgreSQL 17 and the application versions from the archived system's configuration revision. Never restore the exercise into the running server.
-
-1. Select an archive with `sudo borg-job-hdd list`, then run `sudo borg-job-hdd check --verify-data`.
-2. In an empty scratch directory, extract it with `sudo borg-job-hdd extract ::<archive>`; paths are relative to that directory.
-3. Restore `var/backup/postgresql/all.sql.zstd` into the disposable PostgreSQL instance, including its roles. Restore one application's state directory with its ownership preserved.
-4. Start the application and verify a login and a known record or file. For Nextcloud, disable the maintenance mode stored in the archive after restoring both its database and files.
-
-### Coverage
-
-The local repository protects SSD-held service state. HDD media, gallery data, and Matrix media need another device or an offsite destination; the backup HDD cannot protect itself. Selecting that destination and completing the first restore exercise remain open tasks.
+Extraction only recovers files; restore database roles and data from `var/backup/postgresql/all.sql.zstd` into PostgreSQL as well.
+A restore has not yet been tested.
+HDD media, gallery data, and Matrix attachments still need a backup on another device.

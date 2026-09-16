@@ -2,10 +2,10 @@
   den.aspects.saber.provides.homepage.nixos =
     { config, lib, ... }:
     {
-      options.saber.dashboard = lib.mkOption {
+      options.services.homepage-dashboard.entries = lib.mkOption {
         type = lib.types.attrsOf (lib.types.attrsOf lib.types.str);
         default = { };
-        description = "Dashboard entries contributed by Saber services.";
+        description = "Dashboard entries contributed by services.";
       };
       config = {
         services.homepage-dashboard = {
@@ -13,7 +13,11 @@
           listenPort = 8088;
           allowedHosts = "dashboard.echidna-ghost.ts.net";
           services = [
-            { Apps = lib.mapAttrsToList (name: entry: { ${name} = entry; }) config.saber.dashboard; }
+            {
+              Apps = lib.mapAttrsToList (name: entry: {
+                ${name} = entry;
+              }) config.services.homepage-dashboard.entries;
+            }
           ];
           settings = {
             title = "1365972.xyz";
