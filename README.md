@@ -21,4 +21,5 @@ Modules declare their flake inputs alongside their configuration, and [flake-fil
 ## Links
 
 - [Agent skills](modules/users/paul/skills/) for Claude Code and Codex
+- [Windows skill links](scripts/link-skills.ps1) link repository skills into Codex and Claude Code.
 - [References](docs/References.md) for option searches, manuals, and related tools
