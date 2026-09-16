@@ -1,6 +1,5 @@
 # Repository Guidelines
 
-NixOS and home-manager configs for four hosts, composed with the den aspect pattern over a dendritic flake-parts tree.
 comin deploys `main` to every host, so a push is a deploy.
 
 ## Working Rules
@@ -8,9 +7,9 @@ comin deploys `main` to every host, so a push is a deploy.
 - Great, not good: build the end state as if the config had always been designed for it, refactoring or deleting whatever stands in the way.
 - Write self-explanatory code with no comments; a comment means the code is not readable enough.
   The rare exception is a constraint the code cannot express.
-- Prefer declaring a thing over scripting it: a command run once belongs in the README, a repeated fetch or migration in `scripts/`.
+- Prefer declarative configuration; repeated maintenance belongs in `scripts/`.
 - Get the nouns and verbs right; no abbreviations; units and qualifiers last, by descending significance.
-- Docs are terse declarative records of goals, decisions, vocabulary, and open questions, each fact in exactly one place.
+- Keep public documentation to a brief introduction and architecture links for readers borrowing parts of the setup.
 - Write one sentence per Markdown source line.
 
 ## Codebase
