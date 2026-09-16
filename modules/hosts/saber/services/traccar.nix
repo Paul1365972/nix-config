@@ -28,12 +28,12 @@
           ];
         };
         services.borgbackup.jobs.hdd.paths = [ "/var/lib/private/traccar" ];
-        saber.backup.units = [ "traccar.service" ];
-        saber.dashboard.Traccar = {
+        services.homepage-dashboard.entries.Traccar = {
           description = "GPS tracking";
           href = "https://traccar.echidna-ghost.ts.net";
           icon = "traccar.svg";
         };
+        systemd.services.borgbackup-job-hdd.conflicts = [ "traccar.service" ];
         services.traccar = {
           enable = true;
           environmentFile = config.sops.secrets.traccar-env.path;

@@ -1,4 +1,10 @@
 { den, ... }:
+let
+  workstation = [
+    den.aspects.ssh-identities
+    den.aspects.agents
+  ];
+in
 {
   den.aspects.paul = {
     includes = [
@@ -11,10 +17,27 @@
     ];
 
     provides = {
-      phos.includes = [ den.aspects.workstation-user ];
+      phos = { user, ... }: {
+        includes = workstation;
+        nixos = { pkgs, ... }: {
+          services.greetd.settings.initial_session = {
+            user = user.userName;
+            command = "${pkgs.uwsm}/bin/uwsm start hyprland-uwsm.desktop";
+          };
+          virtualisation.vmVariant.users.users.${user.userName}.initialPassword = "phos";
+        };
+      };
       phos-wsl = { user, ... }: {
-        includes = [ den.aspects.workstation-user ];
+        includes = workstation;
         nixos.wsl.defaultUser = user.userName;
+      };
+      darkness = { user, ... }: {
+        nixos = { pkgs, ... }: {
+          services.greetd.settings.default_session = {
+            user = user.userName;
+            command = "${pkgs.labwc}/bin/labwc";
+          };
+        };
       };
     };
 
@@ -23,8 +46,7 @@
     user =
       { osConfig, ... }:
       {
-        hashedPasswordFile =
-          if osConfig.sops.secrets ? user-password then osConfig.sops.secrets.user-password.path else null;
+        hashedPasswordFile = osConfig.sops.secrets.user-password.path or null;
       };
 
     homeManager =

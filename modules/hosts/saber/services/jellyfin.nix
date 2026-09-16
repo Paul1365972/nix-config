@@ -19,12 +19,12 @@ _: {
           "/var/lib/jellyfin/transcodes"
         ];
       };
-      saber.backup.units = [ "jellyfin.service" ];
-      saber.dashboard.Jellyfin = {
+      services.homepage-dashboard.entries.Jellyfin = {
         description = "Media";
         href = "https://jellyfin.1365972.xyz";
         icon = "jellyfin.svg";
       };
+      systemd.services.borgbackup-job-hdd.conflicts = [ "jellyfin.service" ];
     };
   };
 }
