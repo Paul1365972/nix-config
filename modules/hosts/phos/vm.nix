@@ -3,6 +3,7 @@
   den.aspects.phos.nixos = {
     virtualisation.vmVariant = {
       disko.enableConfig = false;
+      services.comin.enable = lib.mkForce false;
 
       sops.age.keyFile = lib.mkForce null;
       sops.secrets = lib.mkForce { };
