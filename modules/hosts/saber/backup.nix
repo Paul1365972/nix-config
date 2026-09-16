@@ -9,7 +9,7 @@
         repo = "/mnt/hdd/backup/saber";
         encryption.mode = "none";
         compression = "zstd";
-        startAt = "*-*-* 03:30:00";
+        startAt = "*-*-* 05:00:00";
         preHook = "${pkgs.systemd}/bin/systemctl start postgresqlBackup.service";
         prune.keep = {
           daily = 7;
