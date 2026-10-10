@@ -15,7 +15,6 @@
     matrix
     element
     matrix-bridges
-    nextcloud
     jellyfin
     traccar
     mosquitto
