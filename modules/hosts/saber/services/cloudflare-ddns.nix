@@ -7,7 +7,11 @@
         services.cloudflare-dyndns = {
           enable = true;
           apiTokenFile = config.sops.secrets.cloudflare-ddns-token.path;
-          domains = [ "1365972.xyz" ];
+          domains = [
+            "jellyfin.paul.moe"
+            "chat.paul.moe"
+            "matrix.paul.moe"
+          ];
           ipv6 = true;
         };
 
