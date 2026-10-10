@@ -13,7 +13,7 @@ _: {
           homeserver.address = "http://127.0.0.1:8008";
           database = {
             type = "postgres";
-            uri = "postgresql:///${database}?host=/run/postgresql";
+            uri = "postgresql:///${database}?host=/run/postgresql&user=${database}";
           };
           bridge.permissions = {
             ${serverName} = "user";
