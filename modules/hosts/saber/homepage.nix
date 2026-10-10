@@ -20,7 +20,7 @@
             }
           ];
           settings = {
-            title = "1365972.xyz";
+            title = "saber";
             background = {
               blur = "md";
               opacity = 60;

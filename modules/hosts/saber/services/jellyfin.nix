@@ -3,7 +3,7 @@ _: {
     nixos = {
       services.jellyfin.enable = true;
       users.users.jellyfin.extraGroups = [ "render" ];
-      services.caddy.virtualHosts."jellyfin.1365972.xyz".extraConfig = ''
+      services.caddy.virtualHosts."jellyfin.paul.moe".extraConfig = ''
         reverse_proxy 127.0.0.1:8096
       '';
       fileSystems."/var/lib/jellyfin/media" = {
@@ -21,7 +21,7 @@ _: {
       };
       services.homepage-dashboard.entries.Jellyfin = {
         description = "Media";
-        href = "https://jellyfin.1365972.xyz";
+        href = "https://jellyfin.paul.moe";
         icon = "jellyfin.svg";
       };
       systemd.services.borgbackup-job-hdd.conflicts = [ "jellyfin.service" ];

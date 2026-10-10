@@ -14,7 +14,7 @@
     caddy
     matrix
     element
-    maubot
+    matrix-bridges
     nextcloud
     jellyfin
     traccar

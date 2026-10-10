@@ -16,7 +16,7 @@
           hash = "sha256-F7d4HwM4oCkQrFMr4SFSC0r52ONxY+PW6z5BJawW8Ok=";
         };
         globalConfig = ''
-          email paul@1365972.xyz
+          email me@paul.moe
           acme_dns cloudflare {env.CF_API_TOKEN}
         '';
       };

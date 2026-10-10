@@ -1,7 +1,27 @@
 _: {
   den.aspects.saber.provides.matrix-bridges = {
     nixos =
-      { lib, ... }:
+      {
+        config,
+        lib,
+        pkgs,
+        ...
+      }:
+      let
+        serverName = config.services.matrix-synapse.settings.server_name;
+        bridgeSettings = database: {
+          homeserver.address = "http://127.0.0.1:8008";
+          database = {
+            type = "postgres";
+            uri = "postgresql:///${database}?host=/run/postgresql";
+          };
+          bridge.permissions = {
+            ${serverName} = "user";
+            "@paul:${serverName}" = "admin";
+          };
+          backfill.enabled = true;
+        };
+      in
       {
         systemd.services.borgbackup-job-hdd.conflicts = [
           "mautrix-signal.service"
@@ -33,41 +53,17 @@ _: {
         };
 
         services.mautrix-signal = {
+          package = pkgs.mautrix-signal.override { withGoolm = true; };
           enable = true;
           registerToSynapse = true;
-          settings = {
-            homeserver = {
-              address = "http://127.0.0.1:8008";
-              domain = "matrix.1365972.xyz";
-            };
-            appservice.database = {
-              type = "postgres";
-              uri = "postgresql:///mautrixsignal?host=/run/postgresql";
-            };
-            bridge.permissions = {
-              "matrix.1365972.xyz" = "user";
-              "@paul:matrix.1365972.xyz" = "admin";
-            };
-          };
+          settings = bridgeSettings "mautrixsignal";
         };
 
         services.mautrix-whatsapp = {
+          package = pkgs.mautrix-whatsapp.override { withGoolm = true; };
           enable = true;
           registerToSynapse = true;
-          settings = {
-            homeserver = {
-              address = "http://127.0.0.1:8008";
-              domain = "matrix.1365972.xyz";
-            };
-            appservice.database = {
-              type = "postgres";
-              uri = "postgresql:///mautrixwhatsapp?host=/run/postgresql";
-            };
-            bridge.permissions = {
-              "matrix.1365972.xyz" = "user";
-              "@paul:matrix.1365972.xyz" = "admin";
-            };
-          };
+          settings = bridgeSettings "mautrixwhatsapp";
         };
       };
   };

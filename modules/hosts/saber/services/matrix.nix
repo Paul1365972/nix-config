@@ -26,15 +26,15 @@
         };
         services.caddy.virtualHosts = {
           # Federation needs explicit delegation to 443 because server_name has no port.
-          "matrix.1365972.xyz".extraConfig = ''
+          "matrix.paul.moe".extraConfig = ''
             handle /.well-known/matrix/server {
               header Content-Type application/json
-              respond `{"m.server":"matrix.1365972.xyz:443"}`
+              respond `{"m.server":"matrix.paul.moe:443"}`
             }
             handle /.well-known/matrix/client {
               header Content-Type application/json
               header Access-Control-Allow-Origin *
-              respond `{"m.homeserver":{"base_url":"https://matrix.1365972.xyz"}}`
+              respond `{"m.homeserver":{"base_url":"https://matrix.paul.moe"}}`
             }
             handle {
               reverse_proxy http://127.0.0.1:8008
@@ -68,9 +68,9 @@
           enable = true;
 
           settings = {
-            # User IDs are @paul:matrix.1365972.xyz, not @paul:1365972.xyz; changing this invalidates every account and federated device.
-            server_name = "matrix.1365972.xyz";
-            public_baseurl = "https://matrix.1365972.xyz/";
+            # User IDs are @paul:matrix.paul.moe, not @paul:paul.moe; changing this invalidates every account and federated device.
+            server_name = "matrix.paul.moe";
+            public_baseurl = "https://matrix.paul.moe/";
 
             database = {
               name = "psycopg2";
