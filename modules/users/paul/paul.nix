@@ -62,7 +62,7 @@ in
           enable = true;
           settings.user = {
             name = "Paul1365972";
-            email = "paul1365972@gmail.com";
+            email = "git@paul.moe";
           };
         };
       };
