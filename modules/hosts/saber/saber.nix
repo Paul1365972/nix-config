@@ -10,13 +10,11 @@
     den.aspects.tailscale
     den.aspects.openssh
     postgresql
-    backup
     caddy
     matrix
     element
     matrix-bridges
     jellyfin
-    traccar
     mosquitto
     zigbee2mqtt
     home-assistant

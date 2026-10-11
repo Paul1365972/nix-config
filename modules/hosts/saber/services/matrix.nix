@@ -54,16 +54,11 @@
           options = [ "bind" ];
           depends = [ "/mnt/hdd" ];
         };
-        services.borgbackup.jobs.hdd = {
-          paths = [ "/var/lib/matrix-synapse" ];
-          exclude = [ "/var/lib/matrix-synapse/media_store" ];
-        };
         services.homepage-dashboard.entries."Synapse Admin" = {
           description = "Matrix admin UI";
           href = "https://matrix-admin.echidna-ghost.ts.net";
           icon = "matrix.svg";
         };
-        systemd.services.borgbackup-job-hdd.conflicts = [ "matrix-synapse.service" ];
         services.matrix-synapse = {
           enable = true;
 

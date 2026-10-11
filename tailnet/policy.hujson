@@ -11,7 +11,7 @@
         { "src": ["tag:server"], "dst": ["tag:server"], "ip": ["*"] },
         {
             "src": ["autogroup:member"],
-            "dst": ["svc:dashboard", "svc:matrix-admin", "svc:zigbee", "svc:maubot", "svc:home-assistant", "svc:traccar"],
+            "dst": ["svc:dashboard", "svc:matrix-admin", "svc:zigbee", "svc:home-assistant"],
             "ip":  ["tcp:443"],
         },
         {
@@ -41,9 +41,7 @@
             "svc:dashboard":      ["tag:server"],
             "svc:matrix-admin":   ["tag:server"],
             "svc:zigbee":         ["tag:server"],
-            "svc:maubot":         ["tag:server"],
             "svc:home-assistant": ["tag:server"],
-            "svc:traccar":        ["tag:server"],
         },
         "exitNode": ["tag:exit"],
     },
