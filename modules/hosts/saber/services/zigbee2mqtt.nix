@@ -3,13 +3,11 @@
   den.aspects.saber.provides.zigbee2mqtt.nixos =
     { config, ... }:
     {
-      services.borgbackup.jobs.hdd.paths = [ "/var/lib/zigbee2mqtt" ];
       services.homepage-dashboard.entries.Zigbee2MQTT = {
         description = "Zigbee mesh admin";
         href = "https://zigbee.echidna-ghost.ts.net";
         icon = "zigbee2mqtt.svg";
       };
-      systemd.services.borgbackup-job-hdd.conflicts = [ "zigbee2mqtt.service" ];
       services.zigbee2mqtt = {
         enable = true;
         settings = {

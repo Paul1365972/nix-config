@@ -12,19 +12,11 @@ _: {
         options = [ "bind" ];
         depends = [ "/mnt/hdd" ];
       };
-      services.borgbackup.jobs.hdd = {
-        paths = [ "/var/lib/jellyfin" ];
-        exclude = [
-          "/var/lib/jellyfin/media"
-          "/var/lib/jellyfin/transcodes"
-        ];
-      };
       services.homepage-dashboard.entries.Jellyfin = {
         description = "Media";
         href = "https://jellyfin.paul.moe";
         icon = "jellyfin.svg";
       };
-      systemd.services.borgbackup-job-hdd.conflicts = [ "jellyfin.service" ];
     };
   };
 }

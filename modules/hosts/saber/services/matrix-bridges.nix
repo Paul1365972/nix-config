@@ -23,10 +23,6 @@ _: {
         };
       in
       {
-        systemd.services.borgbackup-job-hdd.conflicts = [
-          "mautrix-signal.service"
-          "mautrix-whatsapp.service"
-        ];
         services.postgresql = {
           ensureDatabases = [
             "mautrixsignal"

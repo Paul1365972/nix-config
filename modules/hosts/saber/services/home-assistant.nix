@@ -1,8 +1,6 @@
 _: {
   den.aspects.saber.provides.home-assistant = {
     nixos = {
-      services.borgbackup.jobs.hdd.paths = [ "/var/lib/hass" ];
-      systemd.services.borgbackup-job-hdd.conflicts = [ "home-assistant.service" ];
       services.homepage-dashboard.entries."Home Assistant" = {
         description = "Smart home";
         href = "https://home-assistant.echidna-ghost.ts.net";
