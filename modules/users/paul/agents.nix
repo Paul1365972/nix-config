@@ -1,13 +1,22 @@
 _: {
-  den.aspects.agents.homeManager = {
-    programs.claude-code = {
-      enable = true;
-      skills = ./skills;
-    };
+  den.aspects.agents.homeManager =
+    { pkgs, ... }:
+    {
+      home.packages = with pkgs; [
+        bun
+        uv
+      ];
 
-    programs.codex = {
-      enable = true;
-      skills = ./skills;
+      programs.claude-code = {
+        enable = true;
+        context = ./context.md;
+        skills = ./skills;
+      };
+
+      programs.codex = {
+        enable = true;
+        context = ./context.md;
+        skills = ./skills;
+      };
     };
-  };
 }
