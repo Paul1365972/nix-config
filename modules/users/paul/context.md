@@ -1,4 +1,6 @@
 Run JavaScript and TypeScript with `bun` (`bun x` for packages).
 Run Python with `uv run` (`uvx` for packages).
+Write any script longer than a one-liner to a file and run that; delete it afterwards unless it's worth rerunning.
 
-Prefer native file tools (read, edit, write) over shell commands, except for bulk changes.
+Read, edit and write files with the native tools, not `cat`, `sed` or heredocs, except for bulk changes.
+`rg` is installed; prefer it over `grep` in the shell.
