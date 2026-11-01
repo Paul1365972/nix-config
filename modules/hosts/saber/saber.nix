@@ -19,6 +19,5 @@
     zigbee2mqtt
     home-assistant
     homepage
-    cloudflare-ddns
   ];
 }

@@ -3,9 +3,7 @@ _: {
     nixos = {
       services.jellyfin.enable = true;
       users.users.jellyfin.extraGroups = [ "render" ];
-      services.caddy.virtualHosts."jellyfin.paul.moe".extraConfig = ''
-        reverse_proxy 127.0.0.1:8096
-      '';
+      services.tailscale.serve.services.jellyfin.endpoints."tcp:443" = "http://127.0.0.1:8096";
       fileSystems."/var/lib/jellyfin/media" = {
         device = "/mnt/hdd/media";
         fsType = "none";
@@ -14,7 +12,7 @@ _: {
       };
       services.homepage-dashboard.entries.Jellyfin = {
         description = "Media";
-        href = "https://jellyfin.paul.moe";
+        href = "https://jellyfin.echidna-ghost.ts.net";
         icon = "jellyfin.svg";
       };
     };

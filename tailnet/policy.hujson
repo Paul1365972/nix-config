@@ -11,7 +11,7 @@
         { "src": ["tag:server"], "dst": ["tag:server"], "ip": ["*"] },
         {
             "src": ["autogroup:member"],
-            "dst": ["svc:dashboard", "svc:matrix-admin", "svc:zigbee", "svc:home-assistant"],
+            "dst": ["svc:dashboard", "svc:matrix-admin", "svc:zigbee", "svc:home-assistant", "svc:jellyfin"],
             "ip":  ["tcp:443"],
         },
         {
@@ -42,6 +42,7 @@
             "svc:matrix-admin":   ["tag:server"],
             "svc:zigbee":         ["tag:server"],
             "svc:home-assistant": ["tag:server"],
+            "svc:jellyfin":       ["tag:server"],
         },
         "exitNode": ["tag:exit"],
     },

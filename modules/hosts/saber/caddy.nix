@@ -1,7 +1,20 @@
 { inputs, ... }:
+let
+  tunnel = "2a7c9fd6-e5c6-4e49-900e-9a7bac28f4ff";
+in
 {
   den.aspects.saber.provides.caddy.nixos =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+    let
+      publicHostnames = lib.filter (name: !lib.hasPrefix ":" name) (
+        lib.attrNames config.services.caddy.virtualHosts
+      );
+    in
     {
       sops.secrets.caddy-env = {
         sopsFile = inputs.self + "/secrets/saber.yaml";
@@ -18,13 +31,29 @@
         globalConfig = ''
           email me@paul.moe
           acme_dns cloudflare {env.CF_API_TOKEN}
+          default_bind 127.0.0.1 [::1]
+          servers {
+            trusted_proxies static 127.0.0.1/32 ::1/128
+            client_ip_headers Cf-Connecting-Ip
+          }
         '';
       };
-      networking.firewall.allowedTCPPorts = [
-        80
-        443
-      ];
-      networking.firewall.allowedUDPPorts = [ 443 ];
       systemd.services.caddy.serviceConfig.EnvironmentFile = config.sops.secrets.caddy-env.path;
+
+      sops.secrets.cloudflared-credentials = {
+        sopsFile = inputs.self + "/secrets/saber.yaml";
+        restartUnits = [ "cloudflared-tunnel-${tunnel}.service" ];
+      };
+      services.cloudflared = {
+        enable = true;
+        tunnels.${tunnel} = {
+          credentialsFile = config.sops.secrets.cloudflared-credentials.path;
+          ingress = lib.genAttrs publicHostnames (hostname: {
+            service = "https://127.0.0.1:443";
+            originRequest.originServerName = hostname;
+          });
+          default = "http_status:404";
+        };
+      };
     };
 }
