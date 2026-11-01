@@ -13,5 +13,16 @@ _: {
       "kernel.dmesg_restrict" = 1;
       "kernel.sysrq" = 0;
     };
+
+    networking.nftables.enable = true;
+    networking.nftables.tables.tcp-ipv4-options = {
+      family = "ip";
+      content = ''
+        chain prerouting {
+          type filter hook prerouting priority raw; policy accept;
+          meta l4proto tcp ip hdrlength gt 5 counter drop
+        }
+      '';
+    };
   };
 }
