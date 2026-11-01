@@ -1,7 +1,7 @@
 _: {
   den.aspects.saber.provides.element = {
     nixos = { pkgs, ... }: {
-      services.caddy.virtualHosts."chat.paul.moe".extraConfig = ''
+      services.caddy.virtualHosts."http://chat.paul.moe".extraConfig = ''
         root * ${pkgs.element-web}
         file_server
         try_files {path} /index.html

@@ -26,7 +26,7 @@
         };
         services.caddy.virtualHosts = {
           # Federation needs explicit delegation to 443 because server_name has no port.
-          "matrix.paul.moe".extraConfig = ''
+          "http://matrix.paul.moe".extraConfig = ''
             handle /.well-known/matrix/server {
               header Content-Type application/json
               respond `{"m.server":"matrix.paul.moe:443"}`
