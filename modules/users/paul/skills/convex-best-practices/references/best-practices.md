@@ -58,7 +58,7 @@ const tomsMessages = allMessages.filter((m) => m.author === "Tom");
 
 Search for `.filter` in your Convex codebase — a regex like `\.filter\(\(?q` will probably find all the ones on database queries.
 
-You can also check automatically that your functions don’t use `.filter` with the [`@convex-dev/no-filter-in-query` ESLint rule](/eslint.md#no-filter-in-query).
+You can also check automatically that your functions don’t use `.filter` with the [`@convex-dev/no-filter-in-query` lint rule](/linting/overview.md#no-filter-in-query).
 
 Decide whether they should be replaced with a `.withIndex` condition — per [this section](/understanding/best-practices/.md#only-use-collect-with-a-small-number-of-results), if you are filtering over a large (1000+) or potentially unbounded number of documents, you should use an index. If not using a `.withIndex` / `.withSearchIndex` condition, consider replacing them with a filter in code for more readability and flexibility.
 
@@ -178,7 +178,7 @@ const watchedMoviesCount = await ctx.db
 
 Search for `.collect` in your Convex codebase (a regex like `\.collect\(` will probably find these). And think through whether the number of results is small. This function health page in the dashboard can also help surface these.
 
-You can also check automatically that `.collect()` is avoided by enabling the [`@convex-dev/no-collect-in-query` ESLint rule](/eslint.md#no-collect-in-query).
+You can also check automatically that `.collect()` is avoided by enabling the [`@convex-dev/no-collect-in-query` lint rule](/linting/overview.md#no-collect-in-query).
 
 The [aggregate component](https://www.npmjs.com/package/@convex-dev/aggregate) or [database triggers](https://stack.convex.dev/triggers) can be helpful patterns for denormalizing data.
 
@@ -249,6 +249,8 @@ const currentTeamMember = await ctx.db
 ### How?
 
 Look through your indexes, either in your `schema.ts` file or in the dashboard, and look for any indexes where one is a prefix of another.
+
+You can also check automatically that no index is a prefix of another with the [`@convex-dev/no-duplicate-indexes` lint rule](/linting/overview.md#no-duplicate-indexes).
 
 ### Exceptions
 
@@ -336,7 +338,7 @@ export const updateMovie = mutation({
 
 Search for `query`, `mutation`, and `action` in your Convex codebase, and ensure that all of them have argument validators (and optionally return value validators).
 
-You can also check automatically that your functions have argument validators with the [`@convex-dev/require-argument-validators` ESLint rule](/eslint.md#require-argument-validators).
+You can also check automatically that your functions have argument validators with the [`@convex-dev/require-args-validator` lint rule](/linting/overview.md#require-args-validator).
 
 If you use HTTP actions, you may want to use an argument validation library like [Zod](https://zod.dev) to validate that the HTTP request is the shape you expect.
 
@@ -534,11 +536,13 @@ export const setTeamName = mutation({
 
 ### How?
 
-Search for `query`, `mutation`, `action`, and `httpAction` in your Convex codebase, and ensure that all of them have some form of access control. [Custom functions](https://github.com/get-convex/convex-helpers/blob/main/packages/convex-helpers/README.md#custom-functions) like [`authenticatedQuery`](https://stack.convex.dev/custom-functions#modifying-the-ctx-argument-to-a-server-function-for-user-auth) can be helpful.
+Search for `query`, `mutation`, `action`, and `httpAction` in your Convex codebase, and ensure that all of them have some form of access control. [Custom functions](https://github.com/convex/convex-helpers/blob/main/packages/convex-helpers/README.md#custom-functions) like [`authenticatedQuery`](https://stack.convex.dev/custom-functions#modifying-the-ctx-argument-to-a-server-function-for-user-auth) can be helpful.
 
 Some apps use Row Level Security (RLS) to check access to each document automatically whenever it's loaded, as described in [this article](https://stack.convex.dev/row-level-security). Alternatively, you can check access in each Convex function instead of checking access for each document.
 
 Helper functions for common checks and common operations can also be useful -- e.g. `isTeamMember`, `isTeamAdmin`, `loadTeam` (which throws if the current user does not have access to the team).
+
+If you name these helpers consistently, the [`@convex-dev/require-access-control` lint rule](/linting/overview.md#require-access-control) can check that every public function calls one of them, so that you don't forget a check as your app grows.
 
 ## Only schedule and `ctx.run*` internal functions
 
@@ -1341,9 +1345,9 @@ await ctx.db.delete("movies", movieId);
 
 Search for calls of `db.get`, `db.patch`, `db.replace` and `db.delete` in your Convex codebase, and ensure that all of them pass a table name as the first argument.
 
-You can also check automatically that a table name argument is passed with the [`@convex-dev/explicit-table-ids` ESLint rule](/eslint.md#explicit-table-ids).
+You can also check automatically that a table name argument is passed with the [`@convex-dev/explicit-table-ids` lint rule](/linting/overview.md#explicit-table-ids).
 
-You can migrate existing code automatically by using the autofix in the ESLint rule, or with the `@convex-dev/codemod` standalone tool.
+You can migrate existing code automatically by using the autofix in the lint rule, or with the `@convex-dev/codemod` standalone tool.
 
 [Learn more on news.convex.dev →](https://news.convex.dev/db-table-name/)
 
@@ -1391,13 +1395,82 @@ If you want to compare the current time with a timestamp stored in a database do
 
 Alternatively, you can pass in the target time in as an explicit argument from the client. For best caching results, the client should avoid changing this argument frequently, for instance by rounding the time down to the most recent minute, so all client requests within that minute use the same arguments.
 
+## Read environment variables through the typed `env` object
+
+### Why?
+
+[Declaring your environment variables](/production/environment-variables.md#declaring) in `convex/convex.config.ts` gives you a typed `env` object to import from `_generated/server`.
+
+Reading them through `env` instead of `process.env` means TypeScript catches typos and tells you which variables are optional, and your deploy fails early with a clear error when a required variable is missing, instead of failing at runtime. With `process.env`, every read has type `string | undefined`, so a misspelled name looks exactly like a variable that hasn't been set.
+
+### Example
+
+convex/convex.config.ts
+
+```
+import { defineApp } from "convex/server";
+
+import { v } from "convex/values";
+
+const app = defineApp({
+
+  env: {
+
+    // Shared secret that callers of `loadOne` must pass as the `token` argument.
+
+    CONVEX_AUTH_TOKEN: v.string(),
+
+    // Optional: notifications are only sent when this is set
+
+    SLACK_WEBHOOK_URL: v.optional(v.string()),
+
+  },
+
+});
+
+export default app;
+```
+
+convex/notifications.ts
+
+```
+import { env } from './_generated/server';
+
+// ❌ The typo compiles, and reads as "not configured": notifications silently
+
+// stop being sent
+
+const webhookUrl = process.env.SLACK_WEBOOK_URL;
+
+if (webhookUrl !== undefined) {
+
+  await fetch(webhookUrl, { method: "POST", body });
+
+}
+
+// ✅ The typo would be a build error, and the type says the variable is optional
+
+const webhookUrl = env.SLACK_WEBHOOK_URL;
+
+if (webhookUrl !== undefined) {
+
+  await fetch(webhookUrl, { method: "POST", body });
+
+}
+```
+
+### How?
+
+Search for `process.env` in your Convex codebase, declare each variable you find in `convex.config.ts`, and read it from the `env` import instead. System environment variables (`CONVEX_CLOUD_URL` and `CONVEX_SITE_URL`) are automatically declared.
+
+You can also check this automatically with the [`@convex-dev/no-process-env` lint rule](/linting/overview.md#no-process-env), which autofixes reads of variables that are already declared.
 # TypeScript
 
 Convex provides end-to-end type support when Convex functions are written in [TypeScript](https://www.typescriptlang.org/).
 
 You can gradually add TypeScript to a Convex project: the following steps provide progressively better type support. For the best support you'll want to complete them all.
 
-**Example:** [TypeScript and Schema](https://github.com/get-convex/convex-demos/tree/main/typescript)
+**Example:** [TypeScript and Schema](https://github.com/convex/convex-demos/tree/main/typescript)
 
 ## Writing Convex functions in TypeScript
 

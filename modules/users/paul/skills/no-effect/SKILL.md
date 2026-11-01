@@ -3,6 +3,9 @@ name: no-effect
 description: Find React effects that should not exist and remove them. Use only when explicitly invoked.
 disable-model-invocation: true
 argument-hint: [path or nothing for the whole project]
+metadata:
+  source: https://raw.githubusercontent.com/reactjs/react.dev/main/src/content/learn/you-might-not-need-an-effect.md
+  vendored: references condensed from upstream, with a local Core Decision Framework
 ---
 
 # You might not need an effect

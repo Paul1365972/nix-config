@@ -3,6 +3,9 @@ name: convex-best-practices
 description: Audit Convex functions against the official best practices. Use only when explicitly invoked.
 disable-model-invocation: true
 argument-hint: [path or nothing for the whole project]
+metadata:
+  source: https://docs.convex.dev/understanding/best-practices.md and https://docs.convex.dev/understanding/best-practices/typescript.md
+  vendored: references/best-practices.md is both pages concatenated, heading anchors, the llms.txt note and repeated blank lines removed
 ---
 
 # Convex best practices audit
@@ -11,7 +14,7 @@ Audit what the argument names. With no argument, audit every Convex function in 
 
 [`references/best-practices.md`](references/best-practices.md) holds the rules. Read the sections that bear on the code in front of you, not the whole file.
 
-Grep for each rule's signature: unawaited promises, `.filter` on queries, unbounded `.collect`, missing argument validators, public functions without access control, `ctx.runQuery` and `ctx.runMutation` inside queries and mutations, `Date.now()` in queries, `ctx.db` calls without a table name, redundant indexes.
+Grep for each rule's signature: unawaited promises, `.filter` on queries, unbounded `.collect`, missing argument validators, public functions without access control, `ctx.runQuery` and `ctx.runMutation` inside queries and mutations, `Date.now()` in queries, `ctx.db` calls without a table name, redundant indexes, `process.env` reads instead of the typed `env` import.
 
 A rule that looks broken often has a documented exception in the reference, so read the surrounding code before calling it a finding.
 
