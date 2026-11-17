@@ -24,7 +24,7 @@ in
             user = user.userName;
             command = "${pkgs.uwsm}/bin/uwsm start hyprland-uwsm.desktop";
           };
-          virtualisation.vmVariant.users.users.${user.userName}.initialPassword = "phos";
+          image.modules.qemu-efi.users.users.${user.userName}.initialPassword = "phos";
         };
       };
       phos-wsl = { user, ... }: {

@@ -9,7 +9,7 @@ My NixOS and Home Manager configuration, built with [den](https://github.com/den
 | [phos](modules/hosts/phos/) | Laptop with Hyprland |
 | [phos-wsl](modules/hosts/phos-wsl/) | NixOS on WSL, development and builds |
 | [darkness](modules/hosts/darkness/) | Raspberry Pi 5 kiosk with labwc |
-| [saber](modules/hosts/saber/) | Home server for media, chat, files, and home automation |
+| [saber](modules/hosts/saber/) | Home server for media, chat, and home automation |
 
 ## Configuration
 
