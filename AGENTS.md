@@ -20,4 +20,4 @@ comin deploys `main` to every host, so a push is a deploy.
 
 Run `nix flake check --all-systems` and `nix fmt`.
 From Windows, you may use `wsl --cd "<repo>" -- <cmd>`.
-Don't push.
+Push only when asked.
