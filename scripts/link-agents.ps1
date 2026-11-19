@@ -22,6 +22,8 @@ foreach ($agent in "$HOME\.claude", "$HOME\.codex") {
     foreach ($skill in $skills) { Link "$agent\skills\$($skill.Name)" $skill.FullName }
 }
 
-foreach ($file in "$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md", "$HOME\.config\opencode\AGENTS.md") {
+Link "$HOME\.gemini\config\skills" "$paul\skills"
+
+foreach ($file in "$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md", "$HOME\.config\opencode\AGENTS.md", "$HOME\.gemini\AGENTS.md") {
     Link $file "$paul\context.md"
 }

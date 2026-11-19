@@ -18,5 +18,13 @@ _: {
         context = ./context.md;
         skills = ./skills;
       };
+
+      programs.antigravity-cli = {
+        enable = true;
+        context.AGENTS = ./context.md;
+      };
+
+      # agy ignores a skill whose folder or SKILL.md is a symlink, which is what `programs.antigravity-cli.skills` creates; a symlink to the whole skills folder works.
+      home.file.".gemini/config/skills".source = ./skills;
     };
 }
