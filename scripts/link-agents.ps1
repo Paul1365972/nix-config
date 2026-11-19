@@ -24,6 +24,10 @@ foreach ($agent in "$HOME\.claude", "$HOME\.codex") {
 
 Link "$HOME\.gemini\config\skills" "$paul\skills"
 
-foreach ($file in "$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md", "$HOME\.config\opencode\AGENTS.md", "$HOME\.gemini\AGENTS.md") {
+$contexts = @("$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md", "$HOME\.config\opencode\AGENTS.md", "$HOME\.gemini\AGENTS.md")
+# T3 Code runs Antigravity with a private --gemini-dir per provider instance, so ~/.gemini/AGENTS.md never reaches it.
+$contexts += Get-ChildItem "$HOME\.t3\userdata\providers\antigravity" -Directory -ErrorAction SilentlyContinue |
+    ForEach-Object { "$($_.FullName)\AGENTS.md" }
+foreach ($file in $contexts) {
     Link $file "$paul\context.md"
 }
