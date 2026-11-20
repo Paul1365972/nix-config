@@ -25,6 +25,7 @@ _: {
             "custom/thunar"
             "custom/chromium"
             "custom/mpv"
+            "custom/moonlight"
             "custom/bluetooth"
           ];
           modules-center = [ "wlr/taskbar" ];
@@ -34,6 +35,11 @@ _: {
           "custom/thunar" = button "File Manager" "thunar";
           "custom/chromium" = button "Chromium Browser" "systemctl --user start chromium.service";
           "custom/mpv" = button "MPV Player" "mpv --player-operation-mode=pseudo-gui";
+          "custom/moonlight" =
+            button "Stream phos, right-click opens Moonlight" "systemctl --user start moonlight-stream.service"
+            // {
+              on-click-right = "systemctl --user start moonlight.service";
+            };
           "custom/bluetooth" = button "Bluetooth" "blueman-manager";
 
           "wlr/taskbar" = {
@@ -74,6 +80,7 @@ _: {
           #custom-thunar,
           #custom-chromium,
           #custom-mpv,
+          #custom-moonlight,
           #custom-bluetooth,
           #taskbar button {
             padding: 2px 6px;
@@ -91,6 +98,7 @@ _: {
           #custom-thunar:hover,
           #custom-chromium:hover,
           #custom-mpv:hover,
+          #custom-moonlight:hover,
           #custom-bluetooth:hover,
           #taskbar button:hover {
             background-color: #3d3d3d;
@@ -100,6 +108,7 @@ _: {
           #custom-thunar:active,
           #custom-chromium:active,
           #custom-mpv:active,
+          #custom-moonlight:active,
           #custom-bluetooth:active {
             background-color: #1d1d1d;
           }
@@ -108,6 +117,7 @@ _: {
           #custom-thunar { background-image: url("${icons}/apps/Thunar.svg"); }
           #custom-chromium { background-image: url("${icons}/apps/chromium-browser.svg"); }
           #custom-mpv { background-image: url("${icons}/apps/mpv.svg"); }
+          #custom-moonlight { background-image: url("${icons}/apps/moonlight.svg"); }
           #custom-bluetooth { background-image: url("${icons}/devices/bluetooth.svg"); }
 
           #taskbar button.active {
