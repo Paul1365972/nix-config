@@ -25,6 +25,8 @@ Delete what you rent when the work is done.
 - `bun x cf`: Cloudflare; the default profile is private, `--profile geomesh` is the company.
 - `bun x convex`: the backend of the company projects.
 - Mail: the `fastmail` MCP is private, the `protonmail` MCP is the company and needs the Proton Mail Bridge running.
+- Trello: the `trello-official` MCP first; for what it can't do, such as card members, the REST API with the key (username) and token (password) from "Trello API (Claude Code REST)" in the "GeoMesh - API-Keys" vault.
+- Browser: Claude in Chrome only. If it isn't connected, stop and say so; never close, copy or debug-launch Chrome.
 
 ## Tools
 
