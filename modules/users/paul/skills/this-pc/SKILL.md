@@ -13,7 +13,7 @@ description: What this PC can reach: remote machines, accounts, uncommon tools. 
 
 - `tailscale`: my own server and NAS.
 - `boat`: many disposable sandboxes in parallel, for work that is too heavy or too parallel for this PC.
-- `hcloud`: one dedicated server, for stable measurements and long-running jobs.
+- `hcloud`: one dedicated server, for stable measurements and long-running jobs, in the `personal` context; `--context geomesh` is the company, whose servers stay.
 - `aws`: a company and a private profile, for what only AWS offers.
 
 Delete what you rent when the work is done.
@@ -24,7 +24,7 @@ Delete what you rent when the work is done.
 - `pass-cli`: Proton Pass, where the logins live.
 - `bun x cf`: Cloudflare; the default profile is private, `--profile geomesh` is the company.
 - `bun x convex`: the backend of the company projects.
-- Mail: the `fastmail` MCP is private, the `protonmail` MCP is the company and needs the Proton Mail Bridge running.
+- Mail: the `fastmail` MCP is private, the `geomesh-mail` MCP is the company.
 - Trello: the `trello-official` MCP first; for what it can't do, such as card members, the REST API with the key (username) and token (password) from "Trello API (Claude Code REST)" in the "GeoMesh - API-Keys" vault.
 - Browser: Claude in Chrome only. If it isn't connected, stop and say so; never close, copy or debug-launch Chrome.
 
