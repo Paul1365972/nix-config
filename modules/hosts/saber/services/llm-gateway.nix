@@ -2,6 +2,7 @@
 let
   listen = "127.0.0.1:8090";
   dashboardListen = "127.0.0.1:8092";
+  publicHost = "llm.paul.moe";
 
   providers = {
     anthropic = {
@@ -79,6 +80,7 @@ in
       configFile = (pkgs.formats.toml { }).generate "llm-gateway.toml" {
         inherit listen models;
         dashboard_listen = dashboardListen;
+        public_host = publicHost;
         store_file = "/var/lib/llm-gateway/store.redb";
         providers = lib.mapAttrs (
           name: provider: provider // { key_file = "/run/credentials/llm-gateway.service/${name}"; }
@@ -94,7 +96,7 @@ in
         }
       ) providers;
 
-      services.cloudflared.publicHosts."llm.paul.moe" = "http://${listen}";
+      services.cloudflared.publicHosts.${publicHost} = "http://${listen}";
       services.tailscale.serve.services.llm-gateway.endpoints."tcp:443" = "http://${dashboardListen}";
       services.homepage-dashboard.entries."LLM Gateway" = {
         description = "Keys and spending";

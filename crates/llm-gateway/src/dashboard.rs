@@ -3,12 +3,9 @@ use std::{collections::BTreeMap, sync::Arc};
 use axum::{
     Json, Router,
     extract::{Path, Query, Request, State},
-    http::{
-        Method, StatusCode,
-        header::{CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, X_FRAME_OPTIONS},
-    },
+    http::{Method, StatusCode},
     middleware::{self, Next},
-    response::{Html, IntoResponse, Response},
+    response::Response,
     routing::{get, post, put},
 };
 use serde::{Deserialize, Serialize};
@@ -19,17 +16,22 @@ use crate::{
     gateway::Gateway,
     keys::{KeyError, KeySettings},
     ledger::{Month, TalliesByKey},
+    page::{font, page},
     price::MicroUsd,
     refusal::Refusal,
 };
 
 pub fn router_without_login(gateway: Arc<Gateway>) -> Router {
     Router::new()
-        .route("/", get(page))
+        .route(
+            "/",
+            get(async || page(include_str!("../assets/dashboard.html"))),
+        )
         .route("/m-plus-2.woff2", get(font))
         .route("/api/overview", get(overview))
         .route("/api/keys", post(create_key))
         .route("/api/keys/{name}", put(update_key).delete(revoke_key))
+        .route("/api/keys/{name}/token", get(key_token))
         .layer(middleware::from_fn(refuse_changes_from_other_sites))
         .with_state(gateway)
 }
@@ -52,28 +54,6 @@ async fn refuse_changes_from_other_sites(
     Ok(next.run(request).await)
 }
 
-async fn page() -> impl IntoResponse {
-    let no_other_site_may_frame_it = [
-        (CONTENT_SECURITY_POLICY, "frame-ancestors 'none'"),
-        (X_FRAME_OPTIONS, "DENY"),
-    ];
-    (
-        no_other_site_may_frame_it,
-        Html(include_str!("../assets/dashboard.html")),
-    )
-}
-
-async fn font() -> impl IntoResponse {
-    let kept_by_the_browser = [
-        (CONTENT_TYPE, "font/woff2"),
-        (CACHE_CONTROL, "public, max-age=31536000, immutable"),
-    ];
-    (
-        kept_by_the_browser,
-        include_bytes!("../assets/m-plus-2.woff2").as_slice(),
-    )
-}
-
 #[derive(Deserialize)]
 struct OverviewQuery {
     month: Option<String>,
@@ -81,6 +61,7 @@ struct OverviewQuery {
 
 #[derive(Serialize)]
 struct Overview {
+    public_url: String,
     month: String,
     months: Vec<String>,
     providers: Vec<String>,
@@ -119,6 +100,7 @@ async fn overview(
     });
     let months = gateway.ledger.months();
     Ok(Json(Overview {
+        public_url: gateway.public_url.clone(),
         month: month.to_string(),
         months: months.iter().rev().map(Month::to_string).collect(),
         providers: gateway.providers().map(str::to_owned).collect(),
@@ -154,6 +136,14 @@ async fn update_key(
     block_in_place(|| gateway.keys.update(&name, settings))?;
     tracing::info!(key = name, "updated a key");
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn key_token(
+    State(gateway): State<Arc<Gateway>>,
+    Path(name): Path<String>,
+) -> Result<Json<Value>, Refusal> {
+    let key = gateway.keys.named(&name).ok_or(KeyError::NotFound)?;
+    Ok(Json(json!({ "token": key.token })))
 }
 
 async fn revoke_key(

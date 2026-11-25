@@ -13,6 +13,7 @@ Requests and responses pass through as they are, so caching, thinking, tools and
 - `GET /v1/usage` shows what the calling key has spent of its limits, and `GET /v1/models` the configured models.
 
 A key goes in `Authorization: Bearer` or in `x-api-key`.
+The gateway's own address with a key's token after a `#` opens a page that shows the key's limits and spending and keeps the token in that browser.
 
 OpenCode takes the gateway as the base URL of its own providers, with the gateway key from `/connect`:
 
@@ -35,7 +36,7 @@ A key has a limit that resets every day, week or month, or never, which makes it
 It may have tighter limits for single providers; a limit of 0 keeps it off a provider.
 Days, weeks and months turn over at midnight UTC, weeks on Monday.
 The dashboard listens on its own port and has no login, so it must only be reachable from a trusted network; saber serves it to the tailnet.
-A key's token is shown once, and the gateway keeps only its hash.
+The dashboard shows a key's token and its link again whenever asked, so the store holds the tokens as they are.
 
 ## Limit
 

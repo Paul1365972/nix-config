@@ -139,7 +139,7 @@ impl AddAssign for Tally {
     }
 }
 
-type TalliesByModel = BTreeMap<Arc<str>, Tally>;
+pub type TalliesByModel = BTreeMap<Arc<str>, Tally>;
 pub type TalliesByKey = BTreeMap<Arc<str>, TalliesByModel>;
 pub type DaysByKey = BTreeMap<Arc<str>, BTreeMap<NaiveDate, TalliesByModel>>;
 
@@ -178,10 +178,8 @@ impl Ledger {
 
     pub fn spent_by_provider(&self, key: &str, since: NaiveDate) -> BTreeMap<String, MicroUsd> {
         let days_by_key = self.lock();
-        let days = days_by_key.get(key).into_iter();
-        let tallies = days.flat_map(|days| days.range(since..).flat_map(|(_, tallies)| tallies));
         let mut spent = BTreeMap::<String, MicroUsd>::new();
-        for (model, tally) in tallies {
+        for (model, tally) in tallies_since(&days_by_key, key, since) {
             let provider = model
                 .split_once('/')
                 .map_or(&**model, |(provider, _)| provider);
@@ -191,6 +189,15 @@ impl Ledger {
             }
         }
         spent
+    }
+
+    pub fn models_since(&self, key: &str, since: NaiveDate) -> TalliesByModel {
+        let days_by_key = self.lock();
+        let mut tallies_by_model = TalliesByModel::new();
+        for (model, tally) in tallies_since(&days_by_key, key, since) {
+            *tallies_by_model.entry(model.clone()).or_default() += *tally;
+        }
+        tallies_by_model
     }
 
     pub fn month(&self, month: Month) -> TalliesByKey {
@@ -219,4 +226,13 @@ impl Ledger {
             .lock()
             .expect("the ledger lock is never poisoned")
     }
+}
+
+fn tallies_since<'ledger>(
+    days_by_key: &'ledger DaysByKey,
+    key: &str,
+    since: NaiveDate,
+) -> impl Iterator<Item = (&'ledger Arc<str>, &'ledger Tally)> {
+    let days = days_by_key.get(key).into_iter();
+    days.flat_map(move |days| days.range(since..).flat_map(|(_, tallies)| tallies))
 }

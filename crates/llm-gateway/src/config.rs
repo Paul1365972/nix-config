@@ -14,6 +14,7 @@ use crate::{api::Api, price::ModelPrices};
 pub struct Config {
     pub listen: SocketAddr,
     pub dashboard_listen: SocketAddr,
+    pub public_host: String,
     pub store_file: PathBuf,
     pub providers: BTreeMap<String, ProviderConfig>,
     pub models: BTreeMap<String, ModelPrices>,
@@ -40,6 +41,10 @@ impl Config {
     }
 
     fn check(&self) -> Result<()> {
+        let is_host_character = |byte: u8| byte.is_ascii_alphanumeric() || b"-.".contains(&byte);
+        if self.public_host.is_empty() || !self.public_host.bytes().all(is_host_character) {
+            bail!("public_host {:?} is not a host name", self.public_host);
+        }
         for (name, prices) in &self.models {
             let Some((provider, _)) = name.split_once('/') else {
                 bail!("model {name:?} is not named provider/model");

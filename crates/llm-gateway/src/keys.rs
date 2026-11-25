@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use chrono::{Datelike, NaiveDate, Weekday};
+use chrono::{Datelike, Days, Months, NaiveDate, Weekday};
 use ring::{
     digest::{SHA256, digest},
     rand::{SecureRandom, SystemRandom},
@@ -22,7 +22,7 @@ use crate::{
     store::{Store, Write},
 };
 
-const TOKEN_PREFIX: &str = "llm-";
+const TOKEN_SECRET_BYTES: usize = 16;
 const NAME_LIMIT_BYTES: usize = 64;
 const LIMIT_REQUESTS_AT_ONCE_MAXIMUM: usize = 1024;
 
@@ -55,6 +55,16 @@ impl LimitResets {
             Self::Never => NaiveDate::MIN,
         }
     }
+
+    fn next_period_start(self, today: NaiveDate) -> Option<NaiveDate> {
+        let period_start = self.period_start(today);
+        match self {
+            Self::Daily => period_start.checked_add_days(Days::new(1)),
+            Self::Weekly => period_start.checked_add_days(Days::new(7)),
+            Self::Monthly => period_start.checked_add_months(Months::new(1)),
+            Self::Never => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,7 +89,7 @@ impl KeySettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredKey {
-    token_sha256: String,
+    token: Token,
     #[serde(flatten)]
     settings: KeySettings,
 }
@@ -87,11 +97,27 @@ pub struct StoredKey {
 pub struct Key {
     pub name: Arc<str>,
     pub settings: KeySettings,
+    pub token: Token,
     token_sha256: String,
     running_requests: Arc<AtomicUsize>,
 }
 
 impl Key {
+    fn new(
+        name: Arc<str>,
+        settings: KeySettings,
+        token: Token,
+        running_requests: Arc<AtomicUsize>,
+    ) -> Self {
+        Self {
+            name,
+            settings,
+            token_sha256: sha256_hex(&token),
+            token,
+            running_requests,
+        }
+    }
+
     pub fn limit(&self) -> MicroUsd {
         MicroUsd::from_usd(self.settings.limit_usd)
     }
@@ -103,6 +129,10 @@ impl Key {
 
     pub fn period_start(&self) -> NaiveDate {
         self.settings.limit_resets.period_start(today())
+    }
+
+    pub fn limit_resets_on(&self) -> Option<NaiveDate> {
+        self.settings.limit_resets.next_period_start(today())
     }
 
     pub fn run_request(&self) -> Option<RunningRequest> {
@@ -151,32 +181,33 @@ type KeysByName = BTreeMap<Arc<str>, Arc<Key>>;
 
 pub struct Keys {
     store: Store,
+    token_prefix: String,
     by_name: RwLock<KeysByName>,
     one_change_at_a_time: Mutex<()>,
 }
 
 impl Keys {
-    pub fn load(store: Store) -> Result<Self> {
+    pub fn load(store: Store, public_host: &str) -> Result<Self> {
         let stored = store.keys().context("reading the keys")?;
         let by_name = stored.into_iter().map(|(name, stored)| {
             let name: Arc<str> = name.into();
-            let key = Key {
-                name: name.clone(),
-                settings: stored.settings,
-                token_sha256: stored.token_sha256,
-                running_requests: Arc::default(),
-            };
+            let key = Key::new(name.clone(), stored.settings, stored.token, Arc::default());
             (name, Arc::new(key))
         });
         Ok(Self {
             by_name: RwLock::new(by_name.collect()),
             store,
+            token_prefix: public_host.replace('.', "-"),
             one_change_at_a_time: Mutex::new(()),
         })
     }
 
     pub fn all(&self) -> Vec<Arc<Key>> {
         self.read().values().cloned().collect()
+    }
+
+    pub fn named(&self, name: &str) -> Option<Arc<Key>> {
+        self.read().get(name).cloned()
     }
 
     pub fn with_token(&self, token: &str) -> Option<Arc<Key>> {
@@ -197,36 +228,36 @@ impl Keys {
             return Err(KeyError::InvalidName);
         }
         settings.check()?;
-        let mut secret = [0; 32];
+        let mut secret = [0; TOKEN_SECRET_BYTES];
         let random = SystemRandom::new();
         random
             .fill(&mut secret)
             .expect("the system gives random bytes");
-        let token = format!("{TOKEN_PREFIX}{}", hex(&secret));
+        let token = format!("{}-{name}-{}", self.token_prefix, hex(&secret));
 
         let _change = self.lock_changes();
         if self.read().contains_key(name) {
             return Err(KeyError::NameTaken);
         }
-        self.store_then_publish(Key {
-            name: name.into(),
+        self.store_then_publish(Key::new(
+            name.into(),
             settings,
-            token_sha256: sha256_hex(&token),
-            running_requests: Arc::default(),
-        });
+            token.clone(),
+            Arc::default(),
+        ));
         Ok(token)
     }
 
     pub fn update(&self, name: &str, settings: KeySettings) -> Result<(), KeyError> {
         settings.check()?;
         let _change = self.lock_changes();
-        let key = self.read().get(name).cloned().ok_or(KeyError::NotFound)?;
-        self.store_then_publish(Key {
-            name: key.name.clone(),
+        let key = self.named(name).ok_or(KeyError::NotFound)?;
+        self.store_then_publish(Key::new(
+            key.name.clone(),
             settings,
-            token_sha256: key.token_sha256.clone(),
-            running_requests: key.running_requests.clone(),
-        });
+            key.token.clone(),
+            key.running_requests.clone(),
+        ));
         Ok(())
     }
 
@@ -244,7 +275,7 @@ impl Keys {
         self.store.write(Write::Key {
             name: key.name.clone(),
             key: StoredKey {
-                token_sha256: key.token_sha256.clone(),
+                token: key.token.clone(),
                 settings: key.settings.clone(),
             },
         });

@@ -25,6 +25,7 @@ pub struct Gateway {
     pub store: Store,
     pub ledger: Ledger,
     pub keys: Keys,
+    pub public_url: String,
     providers: BTreeMap<String, Arc<Provider>>,
     models: BTreeMap<String, Arc<Model>>,
 }
@@ -98,7 +99,8 @@ impl Gateway {
         Ok(Self {
             client,
             ledger: Ledger::load(store.clone())?,
-            keys: Keys::load(store.clone())?,
+            keys: Keys::load(store.clone(), &config.public_host)?,
+            public_url: format!("https://{}", config.public_host),
             store,
             providers,
             models,

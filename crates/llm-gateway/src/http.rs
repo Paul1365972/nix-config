@@ -23,6 +23,7 @@ use crate::{
     gateway::Gateway,
     keys::Key,
     meter::{Meter, relay},
+    page::{font, page},
     price::MicroUsd,
     refusal::{Refusal, X_SHOULD_RETRY},
     request::Request as RequestBody,
@@ -52,6 +53,11 @@ pub async fn serve(
     dashboard_listen: SocketAddr,
 ) -> Result<()> {
     let router = Router::new()
+        .route(
+            "/",
+            get(async || page(include_str!("../assets/usage.html"))),
+        )
+        .route("/m-plus-2.woff2", get(font))
         .route("/v1/chat/completions", post(complete_chat))
         .route("/{provider}/v1/messages", post(create_message))
         .route("/{provider}/v1/responses", post(create_response))
@@ -275,14 +281,20 @@ async fn usage(
     headers: HeaderMap,
 ) -> Result<Json<Value>, Refusal> {
     let key = authenticate(&gateway, &headers)?;
-    let spent_by_provider = gateway.spent_by_provider(&key);
+    let mut spent_by_provider = gateway.spent_by_provider(&key);
+    for provider in gateway.providers() {
+        spent_by_provider.entry(provider.to_owned()).or_default();
+    }
+    let limit_resets_on = key.limit_resets_on().map(|day| day.to_string());
     Ok(Json(json!({
         "key": key.name,
         "limit_usd": key.settings.limit_usd,
         "limit_usd_by_provider": key.settings.limit_usd_by_provider,
         "limit_resets": key.settings.limit_resets,
+        "limit_resets_on": limit_resets_on,
         "spent_usd": spent_by_provider.values().copied().sum::<MicroUsd>(),
         "spent_usd_by_provider": spent_by_provider,
+        "models": gateway.ledger.models_since(&key.name, key.period_start()),
     })))
 }
 

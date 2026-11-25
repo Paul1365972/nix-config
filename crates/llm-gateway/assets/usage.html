@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llm-gateway</title>
+<style>
+  @font-face { font-family: "M PLUS 2"; src: url("/m-plus-2.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  :root {
+    color-scheme: light dark;
+    --page: #f4f4f7; --surface: #ffffff; --sunken: #ecebf1; --ink: #17161c; --quiet: #6d6a79; --line: #e4e3ea;
+    --rose: #e0457b; --stop: #d93a4b;
+    --provider-0: #ef86a6; --provider-1: #6fb2ee; --provider-2: #efba55; --provider-3: #7fcfa9;
+    --shadow: 0 1px 2px rgb(23 22 28 / .05), 0 8px 24px -12px rgb(23 22 28 / .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #131217; --surface: #1c1b21; --sunken: #26252d; --ink: #edecf2; --quiet: #9b98a8; --line: #2c2b34;
+      --rose: #f0679a; --stop: #f0606e;
+      --provider-0: #e87b9d; --provider-1: #64a8e6; --provider-2: #e6b04a; --provider-3: #6fc39b;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -14px rgb(0 0 0 / .6);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1.25rem 5rem; background: var(--page); color: var(--ink);
+    font: 400 .9375rem/1.5 "M PLUS 2", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1, h2, p { margin: 0; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+
+  h1 { font-size: .9375rem; font-weight: 600; letter-spacing: .01em; }
+  .primary, .plain, .danger { padding: .45rem .95rem; border-radius: 99px; font-weight: 500; border: 1px solid transparent; white-space: nowrap; }
+  .primary { background: var(--ink); color: var(--page); }
+  .plain { background: none; border-color: var(--line); }
+  .plain:hover { background: var(--sunken); }
+  .danger { background: none; border-color: var(--line); color: var(--stop); }
+  .danger:hover { background: color-mix(in srgb, var(--stop) 10%, transparent); }
+  .notes { font-size: .875rem; color: var(--quiet); }
+
+  .key { margin-top: 3.5rem; }
+  .key + .key { padding-top: 3rem; border-top: 1px solid var(--line); }
+  .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; min-height: 2.25rem; }
+  .heading h2 { font-size: 1.0625rem; font-weight: 600; overflow-wrap: anywhere; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+  .actions p { font-size: .875rem; color: var(--quiet); }
+  .token { display: block; max-width: 100%; margin-top: .15rem; padding: 0; border: 0; background: none; color: var(--quiet); font-size: .875rem; text-align: left; overflow-wrap: anywhere; }
+  button.token i { font-style: normal; filter: blur(.28em); user-select: none; }
+  code.token { font-family: inherit; user-select: all; }
+  .left { margin-top: .9rem; font-size: 2.5rem; font-weight: 650; line-height: 1.1; letter-spacing: -.02em; }
+  .left small { font-size: 1.125rem; font-weight: 400; letter-spacing: 0; color: var(--quiet); }
+  .left.reached { color: var(--stop); }
+  .mood { margin-top: .6rem; color: var(--quiet); }
+  .mood b { margin-right: .5rem; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .bar { display: flex; height: .75rem; margin-top: 1.75rem; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+  .bar i { width: var(--share); min-width: 0; transition: width .7s cubic-bezier(.2, .8, .2, 1); }
+  .bar i + i { margin-left: 2px; }
+  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+  .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 99px; margin-right: .45rem; }
+  .split { display: flex; flex-wrap: wrap; gap: .35rem 1.5rem; margin: .8rem 0 0; padding: 0; list-style: none; color: var(--quiet); }
+  .split b { margin: 0 .35rem; font-weight: 500; color: var(--ink); }
+  .split .reached { color: var(--stop); }
+
+  .models { margin-top: 1.75rem; padding: .35rem 1.25rem .6rem; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  th, td { padding: .5rem 1rem .5rem 0; text-align: right; white-space: nowrap; }
+  th { font-weight: 400; color: var(--quiet); border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th:last-child, td:last-child { padding-right: 0; }
+  .key > .notes { margin-top: 1rem; }
+
+  #add { display: grid; gap: .6rem; margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--line); }
+  #add label { font-size: 1.0625rem; font-weight: 600; }
+  #add div { display: flex; gap: .5rem; }
+  #add input { flex: 1; min-width: 0; padding: .55rem .75rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  #problem { color: var(--stop); font-size: .875rem; }
+  #problem:empty { display: none; }
+
+  @media (max-width: 40rem) {
+    .left { font-size: 2rem; }
+    .models { padding-inline: 1rem; }
+  }
+</style>
+<main>
+  <header><h1>llm-gateway</h1></header>
+  <div id="keys"></div>
+  <form id="add">
+    <label for="token">Add a key</label>
+    <div>
+      <input id="token" required placeholder="A key's token or link" autocomplete="off" spellcheck="false">
+      <button class="primary">Add key</button>
+    </div>
+    <p id="problem" role="alert"></p>
+    <p class="notes">Keys are kept in this browser only. Whoever has a key's token or link can spend with it.</p>
+  </form>
+</main>
+
+<script>
+const STORED_KEYS = "llm-gateway.keys";
+const REFRESH_INTERVAL_MILLISECONDS = 30000;
+const element = (id) => document.getElementById(id);
+const escaped = (text) => String(text).replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
+const usd = (amount) => "$" + amount.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: amount > 0 && amount < 1 ? 4 : 2 });
+const count = (number) => number.toLocaleString("en");
+const periods = { daily: "today", weekly: "this week", monthly: "this month", never: "" };
+const providerOf = (model) => model.split("/")[0];
+const standInForEverySecret = [...crypto.getRandomValues(new Uint8Array(64))].map((byte) => (byte % 16).toString(16)).join("");
+const shownTokens = new Set();
+let keys = [], keyAboutToBeRemoved = null;
+
+try { keys = JSON.parse(localStorage.getItem(STORED_KEYS)) ?? []; } catch { keys = []; }
+const store = () => { try { localStorage.setItem(STORED_KEYS, JSON.stringify(keys.map(({ token, name }) => ({ token, name })))); } catch {} };
+const tokenIn = (text) => text.trim().split("#").at(-1);
+
+async function load(key) {
+  try {
+    const response = await fetch("/v1/usage", { headers: { authorization: `Bearer ${key.token}` } });
+    key.problem = response.status === 401 ? "revoked" : response.ok ? null : "unanswered";
+    if (response.ok) {
+      key.usage = await response.json();
+      key.name = key.usage.key;
+    }
+  } catch {
+    key.problem = "unanswered";
+  }
+}
+
+function resets(usage, hasReachedLimit) {
+  if (!usage.limit_resets_on) return hasReachedLimit ? "The limit is reached, and it does not reset." : "This limit does not reset.";
+  const moment = new Date(usage.limit_resets_on + "T00:00:00Z")
+    .toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  return hasReachedLimit ? `The limit is reached; requests run again on ${moment}.` : `Resets on ${moment}.`;
+}
+
+function renderUsage({ usage }) {
+  const providers = Object.keys(usage.spent_usd_by_provider);
+  const color = (provider) => `var(--provider-${Math.max(0, providers.indexOf(provider)) % 4})`;
+  const dot = (provider) => `<i class="dot" style="background:${color(provider)}"></i>`;
+  const [spent, limit] = [usage.spent_usd, usage.limit_usd];
+  const hasReachedLimit = spent >= limit;
+  const face = hasReachedLimit ? "(x_x)" : spent >= .8 * limit ? "(>_<)" : "(≧▽≦)";
+  const scale = Math.max(limit, spent) || 1;
+  const segments = providers.filter((provider) => usage.spent_usd_by_provider[provider] > 0).map((provider) =>
+    `<i style="--share:${100 * usage.spent_usd_by_provider[provider] / scale}%;background:${color(provider)}" title="${escaped(provider)} ${usd(usage.spent_usd_by_provider[provider])}"></i>`).join("");
+  const split = providers.map((provider) => {
+    const [spentOnProvider, limitOfProvider] = [usage.spent_usd_by_provider[provider], usage.limit_usd_by_provider[provider]];
+    const amount = limitOfProvider === 0 ? "<b>off</b>"
+      : limitOfProvider === undefined ? `<b>${usd(spentOnProvider)}</b>`
+      : `<b class="${spentOnProvider >= limitOfProvider ? "reached" : ""}">${usd(spentOnProvider)}</b>of ${usd(limitOfProvider)}`;
+    return `<li>${dot(provider)}${escaped(provider)}${amount}</li>`;
+  }).join("");
+  const models = Object.entries(usage.models).sort(([, one], [, other]) => other.cost_usd - one.cost_usd);
+  const searched = models.some(([, tally]) => tally.web_searches);
+  const rows = models.map(([model, tally]) =>
+    `<tr><td>${dot(providerOf(model))}${escaped(model.split("/")[1] ?? model)}</td>` +
+    `<td>${count(tally.requests)}</td><td>${count(tally.uncached_input_tokens)}</td><td>${count(tally.cache_read_tokens)}</td>` +
+    `<td>${count(tally.cache_write_tokens)}</td><td>${count(tally.output_tokens)}</td>${searched ? `<td>${count(tally.web_searches)}</td>` : ""}<td>${usd(tally.cost_usd)}</td></tr>`).join("");
+  const period = periods[usage.limit_resets];
+  const table = rows
+    ? `<div class="models"><table><thead><tr><th>Model</th><th>Requests</th><th>Input</th><th>Cache read</th><th>Cache write</th><th>Output</th>${searched ? "<th>Searches</th>" : ""}<th>Spent</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    : `<p class="notes">No requests ${period || "so far"}.</p>`;
+  const estimated = models.reduce((estimated, [, tally]) => estimated + tally.estimated_requests, 0);
+  const estimates = estimated ? `<p class="notes">${count(estimated)} ${estimated === 1 ? "request ended without its usage and was" : "requests ended without their usage and were"} charged an estimate.</p>` : "";
+  return `<p class="left ${hasReachedLimit ? "reached" : ""}">${usd(Math.max(0, limit - spent))} <small>left${period && ` ${period}`}</small></p>` +
+    `<p class="mood"><b>${face}</b>${usd(spent)} of ${usd(limit)} spent. ${resets(usage, hasReachedLimit)}</p>` +
+    `<div class="bar" role="img" aria-label="${usd(spent)} of ${usd(limit)} spent, split by provider">${segments}</div>` +
+    `<ul class="split">${split}</ul>${table}${estimates}`;
+}
+
+function renderKey(key, index) {
+  const name = escaped(key.name ?? `${key.token.slice(0, 10)}…`);
+  const actions = keyAboutToBeRemoved === key.token
+    ? `<p>Remove ${name} from this browser? Adding it back takes its token or link.</p><button class="plain" data-keep>Keep it</button><button class="danger" data-remove="${index}">Remove key</button>`
+    : `${shownTokens.has(key.token) ? `<button class="plain" data-hide-token="${index}">Hide token</button>` : ""}` +
+      `<button class="plain" data-copy="${index}">Copy token</button><button class="plain" data-ask-remove="${index}">Remove</button>`;
+  const problem = key.problem === "revoked" ? `<p class="mood"><b>(x_x)</b>This key no longer works; it was revoked. Remove it, or ask for a new one.</p>`
+    : key.problem ? `<p class="mood"><b>(-_-)</b>The gateway did not answer. This page tries again shortly.</p>` : "";
+  const usage = key.usage && key.problem !== "revoked" ? renderUsage(key) : "";
+  const secretStart = key.token.lastIndexOf("-") + 1;
+  const token = shownTokens.has(key.token)
+    ? `<code class="token">${escaped(key.token)}</code>`
+    : `<button class="token" data-show-token="${index}" aria-label="Show the token of ${name}" title="Show the token">${escaped(key.token.slice(0, secretStart))}` +
+      `<i aria-hidden="true">${standInForEverySecret.slice(0, key.token.length - secretStart)}</i></button>`;
+  return `<section class="key"><div class="heading"><h2>${name}</h2><div class="actions">${actions}</div></div>${token}${problem}${usage}</section>`;
+}
+
+function render() {
+  element("keys").innerHTML = keys.map(renderKey).join("") ||
+    `<section class="key"><p class="mood"><b>(^_^)/</b>No keys here yet. Open the link you were sent, or paste a key's token below.</p></section>`;
+}
+
+async function refresh() {
+  await Promise.all(keys.map(load));
+  store();
+  render();
+}
+
+async function add(token) {
+  if (keys.some((key) => key.token === token)) return "This key is already here.";
+  const key = { token };
+  await load(key);
+  if (key.problem === "revoked") return "No key has this token. It was revoked, or the token or link is incomplete.";
+  if (key.problem) return "The gateway did not answer. Try again shortly.";
+  keys.push(key);
+  store();
+  render();
+  return "";
+}
+
+async function takeKeyFromLink() {
+  const token = decodeURIComponent(location.hash.slice(1));
+  if (!token) return;
+  history.replaceState(null, "", location.pathname);
+  element("problem").textContent = await add(token);
+}
+
+element("keys").onclick = async (event) => {
+  const { copy, askRemove, remove, keep, showToken, hideToken } = event.target.closest("button")?.dataset ?? {};
+  if (showToken) { shownTokens.add(keys[showToken].token); render(); }
+  if (hideToken) { shownTokens.delete(keys[hideToken].token); render(); }
+  if (copy) {
+    await navigator.clipboard.writeText(keys[copy].token);
+    event.target.textContent = "Copied";
+    return;
+  }
+  if (askRemove || keep !== undefined) { keyAboutToBeRemoved = askRemove ? keys[askRemove].token : null; render(); }
+  if (remove) {
+    keys.splice(remove, 1);
+    keyAboutToBeRemoved = null;
+    store();
+    render();
+  }
+};
+element("add").onsubmit = async (event) => {
+  event.preventDefault();
+  const problem = await add(tokenIn(element("token").value));
+  element("problem").textContent = problem;
+  if (!problem) element("add").reset();
+};
+addEventListener("hashchange", takeKeyFromLink);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+setInterval(() => { if (!document.hidden && !keyAboutToBeRemoved) refresh(); }, REFRESH_INTERVAL_MILLISECONDS);
+
+render();
+refresh().then(takeKeyFromLink);
+</script>

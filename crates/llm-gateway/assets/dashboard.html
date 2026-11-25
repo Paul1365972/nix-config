@@ -94,6 +94,7 @@
   th:last-child, td:last-child { padding-right: 0; }
   td small { font-size: inherit; color: var(--quiet); }
   .notes { margin-top: .9rem; font-size: .875rem; color: var(--quiet); }
+  dialog .notes { margin-top: 0; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: 1rem; }
   .actions p { margin-right: auto; font-size: .875rem; color: var(--quiet); }
 
@@ -116,7 +117,9 @@
   .buttons { display: flex; justify-content: flex-end; gap: .5rem; }
   #problem { color: var(--stop); font-size: .875rem; }
   #problem:empty { display: none; }
-  #token-value { display: block; padding: .8rem .9rem; background: var(--page); border: 1px solid var(--line); border-radius: 10px; font: inherit; overflow-wrap: anywhere; user-select: all; }
+  #token-value, .token code { display: block; padding: .8rem .9rem; background: var(--page); border: 1px solid var(--line); border-radius: 10px; font: inherit; overflow-wrap: anywhere; user-select: all; }
+  .token { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: 1rem; }
+  .token code { flex: 1 1 16rem; padding-block: .45rem; }
 
   @media (max-width: 40rem) {
     .month h2 { font-size: 2rem; }
@@ -191,9 +194,11 @@
   </form>
   <section id="created" hidden>
     <h2>Key created</h2>
-    <p>This is the token of <b id="token-name"></b>. Copy it now; it is not shown again.</p>
+    <p>This is the token of <b id="token-name"></b>. The key's row shows it again whenever you ask.</p>
     <code id="token-value"></code>
+    <p class="notes">The link carries the token and opens the key's usage page, which keeps it in that browser.</p>
     <div class="buttons">
+      <button class="plain" id="link-copy">Copy link</button>
       <button class="plain" id="token-copy">Copy token</button>
       <button class="primary" id="done">Done</button>
     </div>
@@ -211,6 +216,7 @@ const providerOf = (model) => model.split("/")[0];
 const chevron = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>`;
 const periods = { daily: "today", weekly: "this week", monthly: "this month", never: "in total" };
 const openKeys = new Set();
+const shownTokens = new Map();
 let overview, editedKey = null, keyAboutToBeRevoked = null;
 
 const request = async (method, path, body) => {
@@ -279,8 +285,12 @@ function renderDetail(name, key, modelTallies, showsLimit) {
   }).join("");
   const actions = keyAboutToBeRevoked === name
     ? `<p>Revoke ${escaped(name)}? Its token stops working at once.</p><button class="plain" data-keep>Keep it</button><button class="danger" data-revoke="${escaped(name)}">Revoke key</button>`
-    : `<p>Runs up to ${key.limit_requests_at_once} at once.</p><button class="danger" data-ask-revoke="${escaped(name)}">Revoke</button>`;
-  return `<div class="detail">${providerLimits && `<ul class="split">${providerLimits}</ul>`}${table}${estimates}<div class="actions">${actions}</div></div>`;
+    : `<p>Runs up to ${key.limit_requests_at_once} at once.</p>${shownTokens.has(name) ? "" : `<button class="plain" data-show-token="${escaped(name)}">Show token</button>`}<button class="danger" data-ask-revoke="${escaped(name)}">Revoke</button>`;
+  const token = shownTokens.has(name)
+    ? `<div class="token"><code>${escaped(shownTokens.get(name))}</code><button class="plain" data-copy="${escaped(`${overview.public_url}/#${shownTokens.get(name)}`)}">Copy link</button>` +
+      `<button class="plain" data-copy="${escaped(shownTokens.get(name))}">Copy token</button><button class="plain" data-hide-token="${escaped(name)}">Hide</button></div>`
+    : "";
+  return `<div class="detail">${providerLimits && `<ul class="split">${providerLimits}</ul>`}${table}${estimates}${token}<div class="actions">${actions}</div></div>`;
 }
 
 function renderKey(name, isThisMonth, largestSpending) {
@@ -359,9 +369,24 @@ element("token-copy").onclick = async () => {
   await navigator.clipboard.writeText(element("token-value").textContent);
   element("token-copy").textContent = "Copied";
 };
+element("link-copy").onclick = async () => {
+  await navigator.clipboard.writeText(`${overview.public_url}/#${element("token-value").textContent}`);
+  element("link-copy").textContent = "Copied";
+};
 element("keys").onclick = async (event) => {
-  const { edit, askRevoke, revoke, keep } = event.target.dataset;
+  const { edit, askRevoke, revoke, keep, showToken, hideToken, copy } = event.target.dataset;
   if (edit) return openForm(overview.keys.find((key) => key.name === edit));
+  if (showToken) {
+    const { token } = await request("GET", `/api/keys/${encodeURIComponent(showToken)}/token`);
+    shownTokens.set(showToken, token);
+    return render();
+  }
+  if (hideToken) { shownTokens.delete(hideToken); return render(); }
+  if (copy) {
+    await navigator.clipboard.writeText(copy);
+    event.target.textContent = "Copied";
+    return;
+  }
   if (askRevoke || keep !== undefined) { keyAboutToBeRevoked = askRevoke ?? null; return render(); }
   if (revoke) {
     await request("DELETE", `/api/keys/${encodeURIComponent(revoke)}`);
@@ -388,6 +413,7 @@ element("form").onsubmit = async (event) => {
       element("token-name").textContent = name;
       element("token-value").textContent = token;
       element("token-copy").textContent = "Copy token";
+      element("link-copy").textContent = "Copy link";
       element("form").hidden = true;
       element("created").hidden = false;
       element("token-copy").focus();

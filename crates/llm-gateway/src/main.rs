@@ -6,6 +6,7 @@ mod http;
 mod keys;
 mod ledger;
 mod meter;
+mod page;
 mod price;
 mod refusal;
 mod report;
