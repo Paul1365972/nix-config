@@ -233,7 +233,7 @@ impl Keys {
         random
             .fill(&mut secret)
             .expect("the system gives random bytes");
-        let token = format!("{}-{name}-{}", self.token_prefix, hex(&secret));
+        let token = format!("{}-{}", self.token_prefix, hex(&secret));
 
         let _change = self.lock_changes();
         if self.read().contains_key(name) {
