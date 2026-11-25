@@ -1,7 +1,3 @@
-{ inputs, ... }:
-let
-  tunnel = "2a7c9fd6-e5c6-4e49-900e-9a7bac28f4ff";
-in
 {
   den.aspects.saber.provides.caddy.nixos =
     { config, lib, ... }:
@@ -21,18 +17,6 @@ in
           }
         '';
       };
-
-      sops.secrets.cloudflared-credentials = {
-        sopsFile = inputs.self + "/secrets/saber.yaml";
-        restartUnits = [ "cloudflared-tunnel-${tunnel}.service" ];
-      };
-      services.cloudflared = {
-        enable = true;
-        tunnels.${tunnel} = {
-          credentialsFile = config.sops.secrets.cloudflared-credentials.path;
-          ingress = lib.genAttrs publicHostnames (_: "http://127.0.0.1:80");
-          default = "http_status:404";
-        };
-      };
+      services.cloudflared.publicHosts = lib.genAttrs publicHostnames (_: "http://127.0.0.1:80");
     };
 }

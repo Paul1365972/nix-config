@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>llm-gateway</title>
+<style>
+  @font-face { font-family: "M PLUS 2"; src: url("/m-plus-2.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  :root {
+    color-scheme: light dark;
+    --page: #f4f4f7; --surface: #ffffff; --sunken: #ecebf1; --ink: #17161c; --quiet: #6d6a79; --line: #e4e3ea;
+    --rose: #e0457b; --stop: #d93a4b;
+    --provider-0: #ef86a6; --provider-1: #6fb2ee; --provider-2: #efba55; --provider-3: #7fcfa9;
+    --shadow: 0 1px 2px rgb(23 22 28 / .05), 0 8px 24px -12px rgb(23 22 28 / .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #131217; --surface: #1c1b21; --sunken: #26252d; --ink: #edecf2; --quiet: #9b98a8; --line: #2c2b34;
+      --rose: #f0679a; --stop: #f0606e;
+      --provider-0: #e87b9d; --provider-1: #64a8e6; --provider-2: #e6b04a; --provider-3: #6fc39b;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -14px rgb(0 0 0 / .6);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1.25rem 5rem; background: var(--page); color: var(--ink);
+    font: 400 .9375rem/1.5 "M PLUS 2", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 54rem; margin: 0 auto; }
+  h1, h2, p { margin: 0; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+
+  .bar { display: flex; height: .5rem; border-radius: 99px; background: var(--sunken); overflow: hidden; }
+  .bar i { width: var(--share); min-width: 0; transition: width .7s cubic-bezier(.2, .8, .2, 1); }
+  .bar i + i { margin-left: 2px; }
+  .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 99px; margin-right: .45rem; }
+  @media (prefers-reduced-motion: reduce) { .bar i, dialog { transition: none !important; animation: none !important; } }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  h1 { font-size: .9375rem; font-weight: 600; letter-spacing: .01em; }
+  .months { display: flex; align-items: center; gap: .15rem; }
+  .months span { min-width: 8.5rem; text-align: center; font-weight: 500; }
+  .months button { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 99px; background: none; color: var(--quiet); }
+  .months button:hover:not(:disabled) { background: var(--sunken); color: var(--ink); }
+  .months button:disabled { opacity: .3; cursor: default; }
+
+  .month { margin: 3.5rem 0 3rem; }
+  .month h2 { font-size: 2.5rem; font-weight: 650; line-height: 1.1; letter-spacing: -.02em; }
+  .month h2 small { font-size: 1.125rem; font-weight: 400; letter-spacing: 0; color: var(--quiet); }
+  .mood { margin-top: .6rem; color: var(--quiet); }
+  .mood b { margin-right: .5rem; font-weight: 500; color: var(--ink); white-space: nowrap; }
+  .month .bar { height: .75rem; margin-top: 1.75rem; }
+  .split { display: flex; flex-wrap: wrap; gap: .35rem 1.5rem; margin: .8rem 0 0; padding: 0; list-style: none; color: var(--quiet); }
+  .split b { margin-left: .35rem; font-weight: 500; color: var(--ink); }
+
+  .heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: .8rem; }
+  .heading h2 { font-size: 1.0625rem; font-weight: 600; }
+  .primary, .plain, .danger { padding: .45rem .95rem; border-radius: 99px; font-weight: 500; border: 1px solid transparent; }
+  .primary { background: var(--ink); color: var(--page); }
+  .plain { background: none; border-color: var(--line); }
+  .plain:hover { background: var(--sunken); }
+  .danger { background: none; border-color: var(--line); color: var(--stop); }
+  .danger:hover { background: color-mix(in srgb, var(--stop) 10%, transparent); }
+
+  #keys { margin: 0; padding: 0; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  #keys > li + li { border-top: 1px solid var(--line); }
+  #keys > .empty { padding: 2.5rem 1.5rem; text-align: center; color: var(--quiet); }
+  .summary {
+    display: grid; grid-template-columns: minmax(7rem, 1.1fr) minmax(6rem, 1.6fr) minmax(9.5rem, auto) 1rem; align-items: center; gap: 1.25rem;
+    width: 100%; padding: 1.05rem 1.25rem; border: 0; background: none; text-align: left;
+  }
+  .summary:hover { background: color-mix(in srgb, var(--sunken) 45%, transparent); }
+  .summary .name { font-weight: 600; overflow-wrap: anywhere; }
+  .summary .name small { display: block; font-size: .8125rem; font-weight: 400; color: var(--quiet); }
+  .summary .spent { text-align: right; white-space: nowrap; font-weight: 600; }
+  .summary .spent small { font-size: inherit; font-weight: 400; color: var(--quiet); }
+  .summary .reached { color: var(--stop); }
+  .summary svg { color: var(--quiet); transition: transform .2s; }
+  .summary[aria-expanded="true"] svg { transform: rotate(90deg); }
+  .revoked .name { font-weight: 400; color: var(--quiet); }
+
+  .detail { padding: .25rem 1.25rem 1.25rem; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  th, td { padding: .5rem 1rem .5rem 0; text-align: right; white-space: nowrap; }
+  th { font-weight: 400; color: var(--quiet); border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th:last-child, td:last-child { padding-right: 0; }
+  td small { font-size: inherit; color: var(--quiet); }
+  .notes { margin-top: .9rem; font-size: .875rem; color: var(--quiet); }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: 1rem; }
+  .actions p { margin-right: auto; font-size: .875rem; color: var(--quiet); }
+
+  dialog { width: min(34rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px -16px rgb(0 0 0 / .35); animation: arrive .18s cubic-bezier(.2, .8, .2, 1); }
+  dialog::backdrop { background: rgb(19 18 23 / .45); backdrop-filter: blur(3px); }
+  @keyframes arrive { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+  dialog form, dialog section { display: grid; gap: 1.25rem; padding: 1.5rem; }
+  dialog [hidden] { display: none; }
+  dialog h2 { font-size: 1.25rem; font-weight: 650; }
+  .field { display: grid; gap: .35rem; }
+  .field > span, fieldset legend { font-size: .875rem; font-weight: 500; }
+  .field small, fieldset small { font-size: .8125rem; color: var(--quiet); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  input[type="text"], input[type="number"], select { width: 100%; padding: .55rem .75rem; background: var(--page); border: 1px solid var(--line); border-radius: 10px; }
+  input:disabled { color: var(--quiet); background: var(--sunken); }
+  fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+  fieldset legend { padding: 0; margin-bottom: .1rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+  .chips label { cursor: pointer; }
+  .chips input { position: absolute; opacity: 0; pointer-events: none; }
+  .chips span { display: inline-flex; align-items: center; padding: .35rem .8rem; border: 1px solid var(--line); border-radius: 99px; color: var(--quiet); }
+  .chips input:checked + span { border-color: var(--ink); color: var(--ink); background: var(--sunken); }
+  .chips input:focus-visible + span { outline: 2px solid var(--rose); outline-offset: 2px; }
+  #model-limits { display: grid; gap: .5rem; margin-top: .5rem; }
+  #model-limits div { display: grid; grid-template-columns: 1fr 7rem 2.25rem; gap: .5rem; }
+  #model-limits button { border: 0; border-radius: 10px; background: none; color: var(--quiet); font-size: 1.1rem; }
+  #model-limits button:hover { background: var(--sunken); color: var(--ink); }
+  .link { justify-self: start; margin-top: .5rem; padding: 0; border: 0; background: none; color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--quiet); text-underline-offset: .25em; }
+  .buttons { display: flex; justify-content: flex-end; gap: .5rem; }
+  #problem { color: var(--stop); font-size: .875rem; }
+  #problem:empty { display: none; }
+  #token-value { display: block; padding: .8rem .9rem; background: var(--page); border: 1px solid var(--line); border-radius: 10px; font: inherit; overflow-wrap: anywhere; user-select: all; }
+
+  @media (max-width: 40rem) {
+    .month h2 { font-size: 2rem; }
+    .summary { grid-template-columns: 1fr auto 1rem; row-gap: .6rem; }
+    .summary .bar { grid-column: 1 / -1; grid-row: 2; }
+    .pair { grid-template-columns: 1fr; }
+  }
+</style>
+<main>
+  <header>
+    <h1>llm-gateway</h1>
+    <nav class="months" aria-label="Month">
+      <button id="earlier" aria-label="Earlier month"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg></button>
+      <span id="month"></span>
+      <button id="later" aria-label="Later month"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg></button>
+    </nav>
+  </header>
+
+  <section class="month">
+    <h2 id="total"></h2>
+    <p class="mood" id="mood"></p>
+    <div class="bar" id="total-bar" role="img"></div>
+    <ul class="split" id="split"></ul>
+  </section>
+
+  <div class="heading">
+    <h2>Keys</h2>
+    <button class="primary" id="new-key">New key</button>
+  </div>
+  <ul id="keys"></ul>
+</main>
+
+<dialog id="dialog">
+  <form id="form" method="dialog">
+    <h2 id="form-title"></h2>
+    <label class="field"><span>Name</span>
+      <input type="text" name="key_name" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="pair">
+      <label class="field"><span>Limit per month</span>
+        <input type="number" name="limit_usd_per_month" min="0" step="any" required>
+        <small>In USD, across every model.</small>
+      </label>
+      <label class="field"><span>Requests at once</span>
+        <input type="number" name="limit_requests_at_once" min="1" max="1024" required>
+        <small>More than this are told to retry.</small>
+      </label>
+    </div>
+    <fieldset>
+      <legend>Providers</legend>
+      <small>The key may use the selected ones.</small>
+      <div class="chips" id="providers"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Limits per model</legend>
+      <small>A tighter monthly limit for single models, in USD.</small>
+      <div id="model-limits"></div>
+      <button type="button" class="link" id="add-model-limit">Add a model limit</button>
+    </fieldset>
+    <p id="problem" role="alert"></p>
+    <div class="buttons">
+      <button type="button" class="plain" id="cancel">Cancel</button>
+      <button class="primary" id="save"></button>
+    </div>
+  </form>
+  <section id="created" hidden>
+    <h2>Key created</h2>
+    <p>This is the token of <b id="token-name"></b>. Copy it now; it is not shown again.</p>
+    <code id="token-value"></code>
+    <div class="buttons">
+      <button class="plain" id="token-copy">Copy token</button>
+      <button class="primary" id="done">Done</button>
+    </div>
+  </section>
+</dialog>
+
+<script>
+const element = (id) => document.getElementById(id);
+const fields = element("form").elements;
+const escaped = (text) => String(text).replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
+const usd = (amount) => "$" + amount.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: amount > 0 && amount < 1 ? 4 : 2 });
+const count = (number) => number.toLocaleString("en");
+const monthName = (month, options = { month: "long", year: "numeric" }) => new Date(month + "-15").toLocaleString("en", options);
+const providerOf = (model) => model.split("/")[0];
+const chevron = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>`;
+const noUsage = { requests: 0, estimated_requests: 0, uncached_input_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, output_tokens: 0, web_searches: 0, cost_usd: 0 };
+const openKeys = new Set();
+let overview, editedKey = null, keyAboutToBeRevoked = null;
+
+const request = async (method, path, body) => {
+  const response = await fetch(path, { method, headers: body && { "content-type": "application/json" }, body: body && JSON.stringify(body) });
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error?.message ?? response.statusText);
+  return response.status === 204 ? null : response.json();
+};
+
+const tallies = (name) => Object.entries(overview.tallies[name] ?? {});
+const spentBy = (name) => tallies(name).reduce((spent, [, tally]) => spent + tally.cost_usd, 0);
+const providerColor = (provider) => `var(--provider-${Math.max(0, overview.providers.indexOf(provider)) % 4})`;
+const spentByProvider = (modelTallies) => overview.providers
+  .map((provider) => [provider, modelTallies.filter(([model]) => providerOf(model) === provider).reduce((spent, [, tally]) => spent + tally.cost_usd, 0)])
+  .filter(([, spent]) => spent > 0);
+const segments = (modelTallies, scale) => spentByProvider(modelTallies)
+  .map(([provider, spent]) => `<i style="--share:${100 * spent / scale}%;background:${providerColor(provider)}" title="${escaped(provider)} ${usd(spent)}"></i>`).join("");
+
+function mood(isThisMonth) {
+  if (!overview.keys.length) return ["(^_^)/", "No keys yet. Create one to let a client in."];
+  if (!isThisMonth) return ["(-_-)", `This is how ${monthName(overview.month, { month: "long" })} ended.`];
+  const share = (key) => spentBy(key.name) / (key.limit_usd_per_month || Infinity);
+  const reached = overview.keys.filter((key) => spentBy(key.name) >= key.limit_usd_per_month).map((key) => key.name);
+  const close = overview.keys.filter((key) => share(key) >= .8 && share(key) < 1).map((key) => key.name);
+  const listed = (names) => names.length > 2 ? `${names.length} keys` : names.join(" and ");
+  const one = (names, singular, plural) => names.length > 1 ? plural : singular;
+  if (reached.length) return ["(x_x)", `${listed(reached)} ${one(reached, "has", "have")} reached the limit and ${one(reached, "is", "are")} turned away until next month.`];
+  if (close.length) return ["(>_<)", `${listed(close)} ${one(close, "is", "are")} close to the limit.`];
+  return ["(≧▽≦)", "Every key is within its limit."];
+}
+
+function renderMonth(names) {
+  const [newest, oldest] = [overview.months[0], overview.months.at(-1)];
+  element("month").textContent = monthName(overview.month);
+  element("earlier").disabled = overview.month === oldest;
+  element("later").disabled = overview.month === newest;
+  const everyTally = names.flatMap(tallies);
+  const total = everyTally.reduce((total, [, tally]) => total + tally.cost_usd, 0);
+  const [face, words] = mood(overview.month === newest);
+  element("total").innerHTML = `${usd(total)} <small>spent in ${monthName(overview.month, { month: "long" })}</small>`;
+  element("mood").innerHTML = `<b>${face}</b>${escaped(words)}`;
+  element("total-bar").innerHTML = segments(everyTally, total || 1);
+  element("total-bar").setAttribute("aria-label", `${usd(total)} spent, split by provider`);
+  element("split").innerHTML = spentByProvider(everyTally)
+    .map(([provider, spent]) => `<li><i class="dot" style="background:${providerColor(provider)}"></i>${escaped(provider)}<b>${usd(spent)}</b></li>`).join("");
+}
+
+function renderDetail(name, key, modelTallies) {
+  const limits = key?.limit_usd_per_month_by_model ?? {};
+  const models = [...new Set([...modelTallies.map(([model]) => model), ...Object.keys(limits)])];
+  const searched = modelTallies.some(([, tally]) => tally.web_searches);
+  const rows = models.map((model) => {
+    const tally = overview.tallies[name]?.[model] ?? noUsage;
+    const limit = model in limits ? ` <small>of ${usd(limits[model])}</small>` : "";
+    return `<tr><td><i class="dot" style="background:${providerColor(providerOf(model))}"></i>${escaped(model.split("/")[1] ?? model)}</td>` +
+      `<td>${count(tally.requests)}</td><td>${count(tally.uncached_input_tokens)}</td><td>${count(tally.cache_read_tokens)}</td>` +
+      `<td>${count(tally.cache_write_tokens)}</td><td>${count(tally.output_tokens)}</td>${searched ? `<td>${count(tally.web_searches)}</td>` : ""}<td>${usd(tally.cost_usd)}${limit}</td></tr>`;
+  }).join("");
+  const table = models.length
+    ? `<div class="scroll"><table><thead><tr><th>Model</th><th>Requests</th><th>Input</th><th>Cache read</th><th>Cache write</th><th>Output</th>${searched ? "<th>Searches</th>" : ""}<th>Spent</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    : `<p class="notes">No requests in ${monthName(overview.month)}.</p>`;
+  const estimated = modelTallies.reduce((estimated, [, tally]) => estimated + tally.estimated_requests, 0);
+  const estimates = estimated ? `<p class="notes">${count(estimated)} ${estimated === 1 ? "request ended without its usage and was" : "requests ended without their usage and were"} charged an estimate.</p>` : "";
+  if (!key) return `<div class="detail">${table}${estimates}</div>`;
+  const uses = key.only_providers ? `Uses ${key.only_providers.map(escaped).join(" and ")}.` : "Uses every provider.";
+  const actions = keyAboutToBeRevoked === name
+    ? `<p>Revoke ${escaped(name)}? Its token stops working at once.</p><button class="plain" data-keep>Keep it</button><button class="danger" data-revoke="${escaped(name)}">Revoke key</button>`
+    : `<p>${uses} Runs up to ${key.limit_requests_at_once} at once.</p><button class="plain" data-edit="${escaped(name)}">Edit</button><button class="danger" data-ask-revoke="${escaped(name)}">Revoke</button>`;
+  return `<div class="detail">${table}${estimates}<div class="actions">${actions}</div></div>`;
+}
+
+function renderKey(name, isThisMonth, largestSpending) {
+  const key = overview.keys.find((key) => key.name === name);
+  const modelTallies = tallies(name).sort(([, one], [, other]) => other.cost_usd - one.cost_usd);
+  const spent = spentBy(name);
+  const limit = key?.limit_usd_per_month;
+  const hasReachedLimit = key && spent >= limit;
+  const scale = (key ? Math.max(limit, spent) : largestSpending) || 1;
+  const running = key && isThisMonth && key.running_requests ? `<small>${key.running_requests} running</small>` : key ? "" : "<small>revoked</small>";
+  const amount = `<span class="${hasReachedLimit ? "reached" : ""}">${usd(spent)}</span>${key ? ` <small>of ${usd(limit)}</small>` : ""}`;
+  const isOpen = openKeys.has(name);
+  return `<li class="${key ? "" : "revoked"}"><button class="summary" data-key="${escaped(name)}" aria-expanded="${isOpen}">` +
+    `<span class="name">${escaped(name)}${running}</span>` +
+    `<span class="bar" role="img" aria-label="${usd(spent)} spent${key ? ` of ${usd(limit)}` : ""}">${segments(modelTallies, scale)}</span>` +
+    `<span class="spent">${amount}</span>${chevron}</button>${isOpen ? renderDetail(name, key, modelTallies) : ""}</li>`;
+}
+
+function render() {
+  const keyNames = overview.keys.map((key) => key.name).sort();
+  const revokedNames = Object.keys(overview.tallies).filter((name) => !keyNames.includes(name)).sort();
+  const names = [...keyNames, ...revokedNames];
+  const largestSpending = Math.max(0, ...names.map(spentBy));
+  renderMonth(names);
+  element("keys").innerHTML = names.map((name) => renderKey(name, overview.month === overview.months[0], largestSpending)).join("") ||
+    `<li class="empty">No keys yet. Create one, then give its token to a client.</li>`;
+}
+
+async function load(month = overview?.month ?? "") {
+  overview = await request("GET", "/api/overview" + (month ? `?month=${month}` : ""));
+  render();
+}
+
+function addModelLimit(model = "", limit = "") {
+  const models = [...new Set([...overview.models, ...(model ? [model] : [])])];
+  const row = document.createElement("div");
+  row.innerHTML = `<select aria-label="Model">${models.map((name) => `<option ${name === model ? "selected" : ""}>${escaped(name)}</option>`).join("")}</select>` +
+    `<input type="number" aria-label="Limit in USD per month" min="0" step="any" required placeholder="USD" value="${escaped(limit)}">` +
+    `<button type="button" aria-label="Remove this model limit">×</button>`;
+  row.querySelector("button").onclick = () => row.remove();
+  element("model-limits").append(row);
+}
+
+function openForm(key) {
+  editedKey = key?.name ?? null;
+  element("form").reset();
+  element("form").hidden = false;
+  element("created").hidden = true;
+  element("problem").textContent = "";
+  element("form-title").textContent = key ? `Edit ${key.name}` : "New key";
+  element("save").textContent = key ? "Save changes" : "Create key";
+  fields.key_name.value = key?.name ?? "";
+  fields.key_name.disabled = Boolean(key);
+  fields.limit_usd_per_month.value = key?.limit_usd_per_month ?? 10;
+  fields.limit_requests_at_once.value = key?.limit_requests_at_once ?? 4;
+  const allowed = key?.only_providers ?? overview.providers;
+  element("providers").innerHTML = [...new Set([...overview.providers, ...allowed])].map((provider) => {
+    const note = overview.providers.includes(provider) ? "" : " (no longer configured)";
+    return `<label><input type="checkbox" value="${escaped(provider)}" ${allowed.includes(provider) ? "checked" : ""}><span>${escaped(provider)}${note}</span></label>`;
+  }).join("");
+  element("model-limits").innerHTML = "";
+  for (const [model, limit] of Object.entries(key?.limit_usd_per_month_by_model ?? {})) addModelLimit(model, limit);
+  element("dialog").showModal();
+  (key ? fields.limit_usd_per_month : fields.key_name).focus();
+}
+
+function settingsInForm() {
+  const selected = [...element("providers").querySelectorAll("input:checked")].map((box) => box.value);
+  if (!selected.length) throw new Error("Select at least one provider, or the key can do nothing.");
+  const usesEveryProvider = selected.length === overview.providers.length && overview.providers.every((provider) => selected.includes(provider));
+  const modelLimits = [...element("model-limits").children].map((row) => [row.querySelector("select").value, Number(row.querySelector("input").value)]);
+  return {
+    limit_usd_per_month: Number(fields.limit_usd_per_month.value),
+    limit_requests_at_once: Number(fields.limit_requests_at_once.value),
+    only_providers: usesEveryProvider ? null : selected,
+    limit_usd_per_month_by_model: Object.fromEntries(modelLimits),
+  };
+}
+
+element("earlier").onclick = () => load(overview.months[overview.months.indexOf(overview.month) + 1]);
+element("later").onclick = () => load(overview.months[overview.months.indexOf(overview.month) - 1]);
+element("new-key").onclick = () => openForm(null);
+element("add-model-limit").onclick = () => addModelLimit();
+element("cancel").onclick = element("done").onclick = () => element("dialog").close();
+element("token-copy").onclick = async () => {
+  await navigator.clipboard.writeText(element("token-value").textContent);
+  element("token-copy").textContent = "Copied";
+};
+element("keys").onclick = async (event) => {
+  const { edit, askRevoke, revoke, keep } = event.target.dataset;
+  if (edit) return openForm(overview.keys.find((key) => key.name === edit));
+  if (askRevoke || keep !== undefined) { keyAboutToBeRevoked = askRevoke ?? null; return render(); }
+  if (revoke) {
+    await request("DELETE", `/api/keys/${encodeURIComponent(revoke)}`);
+    keyAboutToBeRevoked = null;
+    return load();
+  }
+  const name = event.target.closest(".summary")?.dataset.key;
+  if (!name) return;
+  openKeys.has(name) ? openKeys.delete(name) : openKeys.add(name);
+  render();
+  document.querySelector(`.summary[data-key="${CSS.escape(name)}"]`)?.focus();
+};
+element("form").onsubmit = async (event) => {
+  event.preventDefault();
+  element("problem").textContent = "";
+  try {
+    const settings = settingsInForm();
+    if (editedKey) {
+      await request("PUT", `/api/keys/${encodeURIComponent(editedKey)}`, settings);
+      element("dialog").close();
+    } else {
+      const name = fields.key_name.value;
+      const { token } = await request("POST", "/api/keys", { name, ...settings });
+      element("token-name").textContent = name;
+      element("token-value").textContent = token;
+      element("token-copy").textContent = "Copy token";
+      element("form").hidden = true;
+      element("created").hidden = false;
+      element("token-copy").focus();
+    }
+    await load();
+  } catch (problem) {
+    element("problem").textContent = problem.message;
+  }
+};
+
+load("").catch((problem) => { element("mood").textContent = `The gateway did not answer: ${problem.message}`; });
+setInterval(() => {
+  const isWatchingThisMonth = overview?.month === overview?.months[0] && !document.hidden;
+  if (isWatchingThisMonth && !element("dialog").open && !keyAboutToBeRevoked) load("").catch(() => {});
+}, 10000);
+</script>

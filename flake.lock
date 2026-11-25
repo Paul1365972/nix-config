@@ -38,6 +38,21 @@
         "type": "github"
       }
     },
+    "crane": {
+      "locked": {
+        "lastModified": 1794962885,
+        "narHash": "sha256-zrweT2tXbcWiJMACOhOr2eYFJKVa6g59ouRaZ3BS5Do=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "95e62def851e9d650f0eab63cb4f59a3306e20bd",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
     "den": {
       "locked": {
         "lastModified": 1792618207,
@@ -174,6 +189,22 @@
         "type": "github"
       }
     },
+    "models-dev": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1795543452,
+        "narHash": "sha256-Wz+CremFkyn0T9RcM1xrpqdPY0mQZ+tmPRPcWalaxU0=",
+        "owner": "anomalyco",
+        "repo": "models.dev",
+        "rev": "b1cd59dd94d68f5caaaad01ae8b74bdc8a5044ed",
+        "type": "github"
+      },
+      "original": {
+        "owner": "anomalyco",
+        "repo": "models.dev",
+        "type": "github"
+      }
+    },
     "nixos-images": {
       "inputs": {
         "nixos-stable": [
@@ -294,12 +325,14 @@
     "root": {
       "inputs": {
         "comin": "comin",
+        "crane": "crane",
         "den": "den",
         "disko": "disko",
         "flake-file": "flake-file",
         "flake-parts": "flake-parts",
         "home-manager": "home-manager",
         "import-tree": "import-tree",
+        "models-dev": "models-dev",
         "nixos-raspberrypi": "nixos-raspberrypi",
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_3",

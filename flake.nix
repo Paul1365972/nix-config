@@ -8,6 +8,7 @@
       url = "github:nlewo/comin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    crane.url = "github:ipetkov/crane";
     den.url = "github:denful/den";
     disko = {
       url = "github:nix-community/disko";
@@ -23,6 +24,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     import-tree.url = "github:denful/import-tree";
+    models-dev = {
+      url = "github:anomalyco/models.dev";
+      flake = false;
+    };
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
     nixos-wsl = {
       url = "github:nix-community/nixos-wsl";

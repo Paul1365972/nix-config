@@ -10,6 +10,7 @@
     den.aspects.tailscale
     den.aspects.openssh
     postgresql
+    cloudflared
     caddy
     matrix
     element
@@ -18,6 +19,7 @@
     mosquitto
     zigbee2mqtt
     home-assistant
+    llm-gateway
     homepage
   ];
 }
