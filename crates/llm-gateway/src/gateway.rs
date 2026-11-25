@@ -1,8 +1,4 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use axum::http::{HeaderValue, StatusCode};
@@ -34,10 +30,9 @@ pub struct Gateway {
 
 pub struct Provider {
     pub name: String,
-    pub base_url: String,
     pub bearer: HeaderValue,
     pub api_key: HeaderValue,
-    apis: BTreeSet<Api>,
+    base_urls: BTreeMap<Api, String>,
 }
 
 pub struct Model {
@@ -71,10 +66,13 @@ impl Gateway {
                 anyhow::Ok(value)
             };
             let provider = Provider {
-                base_url: provider.base_url.trim_end_matches('/').to_owned(),
                 bearer: header(format!("Bearer {secret}"))?,
                 api_key: header(secret)?,
-                apis: provider.apis,
+                base_urls: provider
+                    .base_urls
+                    .into_iter()
+                    .map(|(api, url)| (api, url.trim_end_matches('/').to_owned()))
+                    .collect(),
                 name: name.clone(),
             };
             providers.insert(name, Arc::new(provider));
@@ -114,10 +112,21 @@ impl Gateway {
         self.providers.keys().map(String::as_str)
     }
 
-    pub fn apis_by_provider(&self) -> BTreeMap<&str, &BTreeSet<Api>> {
+    pub fn provider_serves(&self, name: &str, api: Api) -> bool {
+        self.providers
+            .get(name)
+            .is_some_and(|provider| provider.serves(api))
+    }
+
+    pub fn apis_by_provider(&self) -> BTreeMap<&str, Vec<Api>> {
         let providers = self.providers.values();
         providers
-            .map(|provider| (provider.name.as_str(), &provider.apis))
+            .map(|provider| {
+                (
+                    provider.name.as_str(),
+                    provider.base_urls.keys().copied().collect(),
+                )
+            })
             .collect()
     }
 
@@ -176,11 +185,17 @@ impl Gateway {
             .get(name)
             .filter(|model| model.provider.serves(api));
         let Some(model) = model else {
+            let message = match api {
+                Api::GenerateContent => {
+                    "This API serves no such model; GET /{provider}/v1beta/models lists the configured models."
+                }
+                _ => "This API serves no such model; GET /v1/models lists the configured models.",
+            };
             return Err(Refusal::new(
                 StatusCode::NOT_FOUND,
                 "not_found_error",
                 "model_not_found",
-                "This API serves no such model; GET /v1/models lists the configured models.",
+                message,
             ));
         };
         let provider = &model.provider.name;
@@ -198,7 +213,11 @@ impl Gateway {
 
 impl Provider {
     pub fn serves(&self, api: Api) -> bool {
-        self.apis.contains(&api)
+        self.base_urls.contains_key(&api)
+    }
+
+    pub fn base_url(&self, api: Api) -> &str {
+        &self.base_urls[&api]
     }
 }
 

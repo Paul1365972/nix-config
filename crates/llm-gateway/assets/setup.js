@@ -2,7 +2,7 @@ import { button, copy, dot, escaped, iconCopyButton, icons, providerName, veiled
 
 const TOKEN_PLACE = "\u0000";
 const clients = { opencode: "OpenCode", "open-webui": "Open WebUI", other: "Something else" };
-const apiNames = { messages: "Messages", responses: "Responses" };
+const apiNames = { messages: "Messages", responses: "Responses", generate_content: "Gemini API" };
 const OPENCODE_CHAT_PACKAGE = "@opencode/ai/providers/openai-compatible";
 const INPUTS_CHAT_TAKES = ["text", "image"];
 const CHAT_NAME = "Chat Completions";
@@ -10,15 +10,19 @@ let chosenClient = "opencode", chosenKey = null;
 
 function texts(usage) {
   const origin = location.origin;
+  const baseUrl = (provider, api) => `${origin}/${provider}/${api === "generate_content" ? "v1beta" : "v1"}`;
   const providers = Object.entries(usage.apis_by_provider);
   const modelsOf = (provider) => usage.models_by_provider[provider] ?? [];
   const withChat = providers.filter(([, apis]) => apis.includes("chat_completions")).map(([provider]) => provider);
   const mostUsed = (models) => models.toSorted((one, other) => (usage.models[other]?.cost_usd ?? 0) - (usage.models[one]?.cost_usd ?? 0))[0];
   const viaChat = (provider) => Object.fromEntries(modelsOf(provider).map((model) => [model, { package: OPENCODE_CHAT_PACKAGE, capabilities: { input: INPUTS_CHAT_TAKES } }]));
-  const inOpenCode = ([provider, apis]) => [provider, {
-    settings: { baseURL: `${origin}/${provider}/v1`, ...(apis.includes("responses") && { transport: "http" }) },
-    ...(!apis.some((api) => api in apiNames) && { models: viaChat(provider) }),
-  }];
+  const inOpenCode = ([provider, apis]) => {
+    const native = ["generate_content", "responses", "messages"].find((api) => apis.includes(api));
+    return [provider, {
+      settings: { baseURL: baseUrl(provider, native), ...(native === "responses" && { transport: "http" }) },
+      ...(!native && { models: viaChat(provider) }),
+    }];
+  };
   const messagesProvider = providers.find(([, apis]) => apis.includes("messages"))?.[0];
   return {
     token: TOKEN_PLACE,
@@ -31,8 +35,8 @@ function texts(usage) {
       `  -d '{"model": "${mostUsed(modelsOf(messagesProvider).map((model) => `${messagesProvider}/${model}`)).split("/")[1]}", "max_tokens": 64,\n       "messages": [{"role": "user", "content": "Say hi."}]}'`,
     rows: [
       ...providers.flatMap(([provider, apis]) => apis.toSorted((one, other) => (one in apiNames ? 0 : 1) - (other in apiNames ? 0 : 1))
-        .map((api) => [`${dot(provider)}${providerName(provider)} ${apiNames[api] ?? CHAT_NAME}`, `${origin}/${provider}/v1`, modelsOf(provider).join(", ")])),
-      ["Any of them, at one address", `${origin}/v1`, "provider/model"],
+        .map((api) => [`${dot(provider)}${providerName(provider)} ${apiNames[api] ?? CHAT_NAME}`, baseUrl(provider, api), modelsOf(provider).join(", ")])),
+      ["Messages, Responses or Chat Completions, at one address", `${origin}/v1`, "provider/model"],
     ],
   };
 }
@@ -66,7 +70,7 @@ export function renderSetup(keys) {
         `${iconCopyButton("Copy the address", `data-action="copy-text" data-text="${escaped(url)}"`)}</span></td><td class="wide-only quiet">${escaped(models)}</td></tr>`).join("") +
       `</tbody></table></div>` +
       (text.curl ? `<div class="line"><p>Try it from a shell</p>${copies("curl")}</div>${shown("curl")}` : "") +
-      `<p class="note">The token is the API key. A request may use only the fields and tools the gateway knows. Fast and priority tiers, other regions, and anything kept at the provider are refused. A request you cancel still runs to its end and is charged.</p>`,
+      `<p class="note">The token is the API key. Fast and priority tiers, other regions, tools the provider bills apart, and anything kept at the provider are refused. A request you cancel still runs to its end and is charged. With the OpenAI Agents SDK, set <code>OPENAI_AGENTS_DISABLE_TRACING=1</code>, or it sends this key to OpenAI.</p>`,
   };
   const choice = (action, value, label, isChosen) =>
     `<button data-action="${action}" data-value="${escaped(value)}" aria-pressed="${isChosen}">${escaped(label)}</button>`;

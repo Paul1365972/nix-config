@@ -9,7 +9,7 @@ use axum::{
         HeaderMap, HeaderName, HeaderValue, StatusCode,
         header::{AUTHORIZATION, CONTENT_TYPE, RETRY_AFTER},
     },
-    response::Response,
+    response::{IntoResponse, Response},
     routing::{get, post},
     serve::ListenerExt,
 };
@@ -19,7 +19,10 @@ use tokio::{sync::oneshot, time::sleep};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    api::{ANTHROPIC_BETA, Api, Work, X_API_KEY},
+    api::{
+        Api, Endpoint, GenerateContentMethod, Work, X_API_KEY, X_GOOG_API_KEY,
+        check_generate_content_query,
+    },
     dashboard,
     gateway::{Gateway, Model, Provider},
     keys::Key,
@@ -123,35 +126,60 @@ async fn stop_signal() {
 }
 
 fn api_routes() -> Router<Arc<Gateway>> {
-    let with_provider_in_model =
-        |api, work| post(move |State(gateway), request| forward(gateway, api, work, None, request));
-    let with_provider_in_path = |api, work| {
-        post(
-            move |State(gateway), Path(provider): Path<String>, request| async move {
-                forward(gateway, api, work, Some(&provider), request).await
-            },
-        )
-    };
-    let mut routes = Router::new();
-    for api in Api::ALL {
-        let path = api.path();
-        routes = routes
-            .route(
-                &format!("/v1{path}"),
-                with_provider_in_model(api, Work::Answer),
-            )
-            .route(
-                &format!("/{{provider}}/v1{path}"),
-                with_provider_in_path(api, Work::Answer),
-            );
-        if let Some(path) = api.path_to_count_tokens() {
+    let mut routes = Router::new()
+        .route("/{provider}/v1beta/models", get(generate_content_models))
+        .route("/{provider}/v1beta/models/{target}", post(generate_content));
+    for (api, work, path) in Api::ROUTES_WITH_MODEL_IN_BODY {
+        routes = routes.route(
+            &format!("/{{provider}}/v1{path}"),
+            post(
+                move |State(gateway), Path(provider): Path<String>, request| async move {
+                    let endpoint = Endpoint::BodyModel {
+                        api,
+                        work,
+                        path,
+                        provider: Some(&provider),
+                    };
+                    forward(gateway, endpoint, request).await
+                },
+            ),
+        );
+        if work == Work::Answer {
+            let endpoint = Endpoint::BodyModel {
+                api,
+                work,
+                path,
+                provider: None,
+            };
             routes = routes.route(
-                &format!("/{{provider}}/v1{path}"),
-                with_provider_in_path(api, Work::CountTokens),
+                &format!("/v1{path}"),
+                post(move |State(gateway), request| forward(gateway, endpoint, request)),
             );
         }
     }
     routes
+}
+
+async fn generate_content(
+    State(gateway): State<Arc<Gateway>>,
+    Path((provider, target)): Path<(String, String)>,
+    request: Request,
+) -> Result<Response, Refusal> {
+    if let Some((model, method)) = target.split_once(':')
+        && model.starts_with(|first: char| first.is_ascii_alphanumeric())
+        && model
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
+        && let Some(method) = GenerateContentMethod::named(method)
+    {
+        let endpoint = Endpoint::PathModel {
+            provider: &provider,
+            model,
+            method,
+        };
+        return forward(gateway, endpoint, request).await;
+    }
+    Err(no_route(request).await)
 }
 
 async fn no_route(request: Request) -> Refusal {
@@ -167,14 +195,13 @@ async fn no_route(request: Request) -> Refusal {
 
 async fn forward(
     gateway: Arc<Gateway>,
-    api: Api,
-    work: Work,
-    route_provider: Option<&str>,
+    endpoint: Endpoint<'_>,
     request: Request,
 ) -> Result<Response, Refusal> {
     let key = authenticate(&gateway, request.headers())?;
-    let answer = answer(gateway, key.clone(), api, work, route_provider, request).await;
+    let answer = answer(gateway, key.clone(), endpoint, request).await;
     answer.inspect_err(|refusal| {
+        let api = endpoint.api();
         tracing::info!(key = %key.name, ?api, %refusal, "refused a request");
     })
 }
@@ -182,20 +209,12 @@ async fn forward(
 async fn answer(
     gateway: Arc<Gateway>,
     key: Arc<Key>,
-    api: Api,
-    work: Work,
-    route_provider: Option<&str>,
+    endpoint: Endpoint<'_>,
     request: Request,
 ) -> Result<Response, Refusal> {
-    let headers_passed_on = headers_passed_on(api, request.headers())?;
-    let query = request.uri().query().unwrap_or_default();
-    if !api.passes_query_on(query) {
-        return Err(Refusal::invalid_request(
-            "query_unsupported",
-            format!("The gateway does not pass on the query {query:?}."),
-        ));
-    }
-    let query_of_url = match query {
+    let (api, work) = (endpoint.api(), endpoint.work());
+    let mut headers = api.headers_passed_on(request.headers())?;
+    let query_of_url = match endpoint.query_to_forward(request.uri().query())? {
         "" => String::new(),
         query => format!("?{query}"),
     };
@@ -207,22 +226,22 @@ async fn answer(
             format!("The request body could not be read; it may hold at most {REQUEST_BODY_LIMIT_BYTES} bytes."),
         )
     })?;
-    let request = RequestBody::read(&body, api)?;
-    let model = gateway.model_served(&key, api, &request.model_name(route_provider)?)?;
+    let request = RequestBody::read(&body, api, work)?;
+    let (model_name, model_name_carries_provider) = match endpoint {
+        Endpoint::BodyModel { provider, .. } => (request.model_name(provider)?, provider.is_none()),
+        Endpoint::PathModel {
+            provider, model, ..
+        } => (format!("{provider}/{model}"), false),
+    };
+    let model = gateway.model_served(&key, api, &model_name)?;
     let provider = model.provider.clone();
-    let model_name_carries_provider = route_provider.is_none();
     let upstream_body = request.upstream_body(model_name_carries_provider, work);
 
-    let path = match work {
-        Work::Answer => Some(api.path()),
-        Work::CountTokens => api.path_to_count_tokens(),
-    };
     let url = format!(
         "{}{}{query_of_url}",
-        provider.base_url,
-        path.unwrap_or_default()
+        provider.base_url(api),
+        endpoint.path()
     );
-    let mut headers = headers_passed_on;
     let (credential, value) = api.credentials(&provider);
     headers.insert(credential, value);
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -293,9 +312,29 @@ async fn exchange_outliving_the_client(
         return;
     }
 
-    let mut response = Response::new(Body::empty());
+    let pass_on_body =
+        status.is_success() || matches!(status.as_u16(), 400 | 404 | 409 | 413 | 422);
+    let mut response = if pass_on_body {
+        Response::new(Body::empty())
+    } else {
+        Refusal::new(
+            status,
+            "api_error",
+            "provider_error",
+            format!(
+                "The provider {} answered {}.",
+                provider.name,
+                status.as_u16()
+            ),
+        )
+        .body()
+        .into_response()
+    };
     *response.status_mut() = status;
     for name in FORWARDED_RESPONSE_HEADERS {
+        if name == CONTENT_TYPE && !pass_on_body {
+            continue;
+        }
         for value in upstream.headers().get_all(&name) {
             response.headers_mut().append(name.clone(), value.clone());
         }
@@ -303,7 +342,9 @@ async fn exchange_outliving_the_client(
     let is_billed_by_provider = status.is_success();
     if !is_billed_by_provider {
         meter.leave_unbilled();
-        *response.body_mut() = Body::new(reqwest::Body::from(upstream));
+        if pass_on_body {
+            *response.body_mut() = Body::new(reqwest::Body::from(upstream));
+        }
         let _ = answer.send(Ok(response));
         return;
     }
@@ -313,26 +354,6 @@ async fn exchange_outliving_the_client(
     reading_to_the_end.await;
 }
 
-fn headers_passed_on(api: Api, given: &HeaderMap) -> Result<HeaderMap, Refusal> {
-    let mut passed_on = HeaderMap::new();
-    for name in api.headers_passed_on() {
-        for value in given.get_all(name) {
-            let betas = match *name == ANTHROPIC_BETA {
-                true => value.to_str().unwrap_or_default().split(',').collect(),
-                false => Vec::new(),
-            };
-            if let Some(beta) = betas.iter().find(|beta| !api.passes_beta_on(beta.trim())) {
-                return Err(Refusal::invalid_request(
-                    "beta_unsupported",
-                    format!("The gateway does not pass on the beta {:?}.", beta.trim()),
-                ));
-            }
-            passed_on.append(name.clone(), value.clone());
-        }
-    }
-    Ok(passed_on)
-}
-
 fn authenticate(gateway: &Gateway, headers: &HeaderMap) -> Result<Arc<Key>, Refusal> {
     let header = |name| headers.get(name).and_then(|value| value.to_str().ok());
     let token_of_anthropic_client = header(X_API_KEY).filter(|token| !token.is_empty());
@@ -340,7 +361,10 @@ fn authenticate(gateway: &Gateway, headers: &HeaderMap) -> Result<Arc<Key>, Refu
         let (scheme, token) = value.split_once(' ')?;
         scheme.eq_ignore_ascii_case("bearer").then_some(token)
     });
-    let token = token_of_anthropic_client.or(token_of_openai_client);
+    let token_of_google_client = header(X_GOOG_API_KEY).filter(|token| !token.is_empty());
+    let token = token_of_anthropic_client
+        .or(token_of_openai_client)
+        .or(token_of_google_client);
     let key = token.and_then(|token| gateway.keys.with_token(token.trim()));
     key.ok_or_else(|| {
         Refusal::new(
@@ -368,11 +392,39 @@ async fn models_of_provider(
     headers: HeaderMap,
 ) -> Result<Json<Value>, Refusal> {
     authenticate(&gateway, &headers)?;
-    let models = gateway.models().filter_map(|model| {
+    Ok(Json(listed(provider_models(&gateway, &provider))))
+}
+
+async fn generate_content_models(
+    State(gateway): State<Arc<Gateway>>,
+    Path(provider): Path<String>,
+    request: Request,
+) -> Result<Json<Value>, Refusal> {
+    authenticate(&gateway, request.headers())?;
+    if !gateway.provider_serves(&provider, Api::GenerateContent) {
+        return Err(no_route(request).await);
+    }
+    check_generate_content_query(request.uri().query(), None)?;
+    let models: Vec<_> = provider_models(&gateway, &provider)
+        .map(|(name, _)| {
+            json!({
+                "name": format!("models/{name}"),
+                "displayName": name,
+                "supportedGenerationMethods": ["generateContent", "countTokens"],
+            })
+        })
+        .collect();
+    Ok(Json(json!({ "models": models })))
+}
+
+fn provider_models<'gateway>(
+    gateway: &'gateway Gateway,
+    provider: &str,
+) -> impl Iterator<Item = (&'gateway str, &'gateway Model)> {
+    gateway.models().filter_map(move |model| {
         let (model_provider, name_in_provider) = model.name.split_once('/')?;
         (model_provider == provider).then_some((name_in_provider, model))
-    });
-    Ok(Json(listed(models)))
+    })
 }
 
 fn listed<'model>(models: impl Iterator<Item = (&'model str, &'model Model)>) -> Value {

@@ -5,7 +5,7 @@ use axum::{
     http::{HeaderName, HeaderValue, StatusCode, header::RETRY_AFTER},
     response::{IntoResponse, Response},
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 pub const X_SHOULD_RETRY: HeaderName = HeaderName::from_static("x-should-retry");
 
@@ -47,6 +47,13 @@ impl Refusal {
         self.retry_after_seconds = Some(seconds);
         self
     }
+
+    pub fn body(&self) -> Json<Value> {
+        Json(json!({
+            "type": "error",
+            "error": { "message": self.message, "type": self.kind, "code": self.code },
+        }))
+    }
 }
 
 impl fmt::Display for Refusal {
@@ -63,12 +70,7 @@ impl fmt::Display for Refusal {
 
 impl IntoResponse for Refusal {
     fn into_response(self) -> Response {
-        let error_as_openai_clients_read_it =
-            json!({ "message": self.message, "type": self.kind, "code": self.code });
-        let error_as_anthropic_clients_read_it_too =
-            json!({ "type": "error", "error": error_as_openai_clients_read_it });
-        let body = Json(error_as_anthropic_clients_read_it_too);
-        let mut response = (self.status, body).into_response();
+        let mut response = (self.status, self.body()).into_response();
         let headers = response.headers_mut();
         let sdks_retry_client_errors_unless_told_not_to = self.status.is_client_error();
         if let Some(seconds) = self.retry_after_seconds {

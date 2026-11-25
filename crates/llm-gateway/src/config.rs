@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     net::SocketAddr,
     path::{Path, PathBuf},
 };
@@ -23,9 +23,8 @@ pub struct Config {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProviderConfig {
-    pub base_url: String,
     pub key_file: PathBuf,
-    pub apis: BTreeSet<Api>,
+    pub base_urls: BTreeMap<Api, String>,
 }
 
 impl Config {

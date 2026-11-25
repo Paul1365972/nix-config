@@ -128,6 +128,12 @@ pub fn relay(
                 break;
             }
             tokio::select! {
+                biased;
+                () = chunks.closed(), if is_client_reading => {
+                    is_client_reading = false;
+                    let (key, model) = (&relay.meter.key.name, &relay.meter.model.name);
+                    tracing::info!(%key, %model, "the client left; its response is read to the end and charged in full");
+                }
                 chunk = relay.next_chunk_or_keepalive() => match chunk {
                     Some(Ok(chunk)) if is_client_reading => {
                         let _ = chunks.send(Ok(chunk)).await;
@@ -139,11 +145,6 @@ pub fn relay(
                     }
                     None => break,
                 },
-                () = chunks.closed(), if is_client_reading => {
-                    is_client_reading = false;
-                    let (key, model) = (&relay.meter.key.name, &relay.meter.model.name);
-                    tracing::info!(%key, %model, "the client left; its response is read to the end and charged in full");
-                }
             }
         }
     };
@@ -203,9 +204,13 @@ impl UsageReader {
         let Some(data) = line.strip_prefix(b"data:") else {
             return;
         };
+        let usage_key: &[u8] = match self.api {
+            Api::GenerateContent => b"\"usageMetadata\"",
+            _ => b"\"usage\"",
+        };
         if data.trim_ascii() == CHAT_COMPLETIONS_STREAM_END {
             self.has_reported_last = true;
-        } else if !self.is_over_buffer_limit && memmem::find(data, b"\"usage\"").is_some() {
+        } else if !self.is_over_buffer_limit && memmem::find(data, usage_key).is_some() {
             self.read_json(data);
         }
     }
@@ -213,7 +218,10 @@ impl UsageReader {
     fn read_json(&mut self, json: &[u8]) {
         if let Some(report) = UsageReport::read(self.api, json) {
             let earlier = self.reported.unwrap_or_default();
-            self.reported = Some(earlier.with_later_running_counts(report.usage));
+            self.reported = Some(match self.api {
+                Api::GenerateContent => report.usage,
+                _ => earlier.with_later_running_counts(report.usage),
+            });
             self.has_reported_last |= report.is_last;
         }
     }

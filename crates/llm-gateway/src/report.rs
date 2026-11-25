@@ -28,6 +28,18 @@ impl UsageReport {
                     is_last: is_closing_chunk_of_openai,
                 })
             }
+            Api::GenerateContent => {
+                let document = serde_json::from_slice::<GenerateContentDocument>(json).ok()?;
+                let is_last = document
+                    .candidates
+                    .unwrap_or_default()
+                    .iter()
+                    .any(|candidate| candidate.finish_reason.is_some());
+                Some(Self {
+                    usage: document.usage_metadata?.into(),
+                    is_last,
+                })
+            }
             Api::Messages => {
                 let document = serde_json::from_slice::<MessagesDocument>(json).ok()?;
                 let usage_of_opening_event = document.message.and_then(|message| message.usage);
@@ -58,6 +70,48 @@ impl UsageReport {
                     is_last: true,
                 })
             }
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GenerateContentDocument {
+    usage_metadata: Option<GenerateContentUsage>,
+    candidates: Option<Vec<GenerateContentCandidate>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GenerateContentCandidate {
+    finish_reason: Option<IgnoredAny>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GenerateContentUsage {
+    prompt_token_count: Option<u64>,
+    cached_content_token_count: Option<u64>,
+    tool_use_prompt_token_count: Option<u64>,
+    candidates_token_count: Option<u64>,
+    thoughts_token_count: Option<u64>,
+}
+
+impl From<GenerateContentUsage> for Usage {
+    fn from(usage: GenerateContentUsage) -> Self {
+        let cache_read_tokens = usage.cached_content_token_count.unwrap_or(0);
+        Self {
+            uncached_input_tokens: usage
+                .prompt_token_count
+                .unwrap_or(0)
+                .saturating_sub(cache_read_tokens)
+                .saturating_add(usage.tool_use_prompt_token_count.unwrap_or(0)),
+            cache_read_tokens,
+            output_tokens: usage
+                .candidates_token_count
+                .unwrap_or(0)
+                .saturating_add(usage.thoughts_token_count.unwrap_or(0)),
+            ..Self::default()
         }
     }
 }

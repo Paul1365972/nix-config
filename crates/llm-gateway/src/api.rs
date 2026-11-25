@@ -1,10 +1,14 @@
-use axum::http::{HeaderName, HeaderValue, header::AUTHORIZATION};
-use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
-use crate::gateway::Provider;
+use axum::http::{HeaderMap, HeaderName, HeaderValue, header::AUTHORIZATION};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+use crate::{gateway::Provider, refusal::Refusal};
 
 pub const X_API_KEY: HeaderName = HeaderName::from_static("x-api-key");
-pub const ANTHROPIC_BETA: HeaderName = HeaderName::from_static("anthropic-beta");
+pub const X_GOOG_API_KEY: HeaderName = HeaderName::from_static("x-goog-api-key");
+const ANTHROPIC_BETA: HeaderName = HeaderName::from_static("anthropic-beta");
 static MESSAGES_HEADERS: [HeaderName; 2] =
     [HeaderName::from_static("anthropic-version"), ANTHROPIC_BETA];
 
@@ -12,6 +16,7 @@ static MESSAGES_HEADERS: [HeaderName; 2] =
 #[serde(rename_all = "snake_case")]
 pub enum Api {
     ChatCompletions,
+    GenerateContent,
     Messages,
     Responses,
 }
@@ -20,6 +25,118 @@ pub enum Api {
 pub enum Work {
     Answer,
     CountTokens,
+}
+
+#[derive(Clone, Copy)]
+pub enum Endpoint<'path> {
+    BodyModel {
+        api: Api,
+        work: Work,
+        path: &'static str,
+        provider: Option<&'path str>,
+    },
+    PathModel {
+        provider: &'path str,
+        model: &'path str,
+        method: GenerateContentMethod,
+    },
+}
+
+impl Endpoint<'_> {
+    pub fn api(self) -> Api {
+        match self {
+            Self::BodyModel { api, .. } => api,
+            Self::PathModel { .. } => Api::GenerateContent,
+        }
+    }
+
+    pub fn work(self) -> Work {
+        match self {
+            Self::BodyModel { work, .. } => work,
+            Self::PathModel { method, .. } => method.work(),
+        }
+    }
+
+    pub fn path(self) -> Cow<'static, str> {
+        match self {
+            Self::BodyModel { path, .. } => Cow::Borrowed(path),
+            Self::PathModel { model, method, .. } => {
+                format!("/models/{model}:{}", method.name()).into()
+            }
+        }
+    }
+
+    pub fn query_to_forward(self, query: Option<&str>) -> Result<&str, Refusal> {
+        let text = query.unwrap_or_default();
+        match self {
+            Self::BodyModel { api, .. }
+                if text.is_empty() || (api == Api::Messages && text == "beta=true") =>
+            {
+                Ok(text)
+            }
+            Self::BodyModel { .. } => Err(Refusal::invalid_request(
+                "query_unsupported",
+                format!("The gateway does not pass on the query {text:?}."),
+            )),
+            Self::PathModel { method, .. } => {
+                check_generate_content_query(query, method.query())?;
+                Ok(text)
+            }
+        }
+    }
+}
+
+pub fn check_generate_content_query(
+    query: Option<&str>,
+    expected: Option<&str>,
+) -> Result<(), Refusal> {
+    if query == expected {
+        return Ok(());
+    }
+    Err(Refusal::invalid_request(
+        "query_unsupported",
+        "The gateway requires alt=sse for streamGenerateContent and accepts no other query.",
+    ))
+}
+
+#[derive(Clone, Copy)]
+pub enum GenerateContentMethod {
+    GenerateContent,
+    StreamGenerateContent,
+    CountTokens,
+}
+
+impl GenerateContentMethod {
+    pub fn named(method: &str) -> Option<Self> {
+        match method {
+            "generateContent" => Some(Self::GenerateContent),
+            "streamGenerateContent" => Some(Self::StreamGenerateContent),
+            "countTokens" => Some(Self::CountTokens),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::GenerateContent => "generateContent",
+            Self::StreamGenerateContent => "streamGenerateContent",
+            Self::CountTokens => "countTokens",
+        }
+    }
+
+    pub fn work(self) -> Work {
+        match self {
+            Self::GenerateContent | Self::StreamGenerateContent => Work::Answer,
+            Self::CountTokens => Work::CountTokens,
+        }
+    }
+
+    pub fn query(self) -> Option<&'static str> {
+        match self {
+            Self::StreamGenerateContent => Some("alt=sse"),
+            Self::GenerateContent | Self::CountTokens => None,
+        }
+    }
 }
 
 pub struct Fields {
@@ -156,6 +273,29 @@ const RESPONSES_FIELDS: Fields = Fields {
     conversation: "input",
 };
 
+const GENERATE_CONTENT_FIELDS: Fields = Fields {
+    passed_as_given: &[
+        "contents",
+        "systemInstruction",
+        "system_instruction",
+        "tools",
+        "toolConfig",
+        "tool_config",
+        "generationConfig",
+        "generation_config",
+        "safetySettings",
+        "safety_settings",
+    ],
+    passed_only_as: &[],
+    stated_when_left_out: &[],
+    conversation: "contents",
+};
+
+pub const GENERATE_CONTENT_REQUEST_FIELDS: [&str; 2] =
+    ["generateContentRequest", "generate_content_request"];
+pub const FIELDS_OF_WRAPPED_GENERATE_CONTENT_REQUEST: [&str; 1] = ["model"];
+const REFUSED_BETA: &[u8] = b"server-side-fallback-";
+
 const DEFAULT_TIER: FixedField = FixedField {
     name: "service_tier",
     json: "\"default\"",
@@ -165,65 +305,23 @@ const NOTHING_STORED: FixedField = FixedField {
     json: "false",
 };
 
-const MESSAGES_BETAS: [&str; 14] = [
-    "interleaved-thinking-2025-05-14",
-    "thinking-binding-controls-2026-08-01",
-    "thinking-display-updates-2026-08-18",
-    "thinking-token-count-2026-05-13",
-    "effort-2025-11-24",
-    "compact-2026-01-12",
-    "context-management-2025-06-27",
-    "mid-conversation-output-config-2026-07-01",
-    "inline-tools-2026-09-15",
-    "structured-outputs-2025-11-13",
-    "web-fetch-2025-09-10",
-    "pdfs-2024-09-25",
-    "fine-grained-tool-streaming-2025-05-14",
-    "prompt-caching-2024-07-31",
-];
-const MESSAGES_TOOL_KINDS_BY_VERSION: [&str; 7] = [
-    "web_search_",
-    "web_fetch_",
-    "tool_search_tool_",
-    "bash_",
-    "text_editor_",
-    "memory_",
-    "computer_",
-];
-const RESPONSES_TOOL_KINDS: [&str; 9] = [
-    "function",
-    "custom",
-    "namespace",
-    "web_search",
-    "tool_search",
-    "apply_patch",
-    "local_shell",
-    "computer",
-    "computer_use_preview",
-];
-
 impl Api {
-    pub const ALL: [Self; 3] = [Self::ChatCompletions, Self::Messages, Self::Responses];
-
-    pub fn path(self) -> &'static str {
-        match self {
-            Self::ChatCompletions => "/chat/completions",
-            Self::Messages => "/messages",
-            Self::Responses => "/responses",
-        }
-    }
-
-    pub fn path_to_count_tokens(self) -> Option<&'static str> {
-        match self {
-            Self::ChatCompletions => None,
-            Self::Messages => Some("/messages/count_tokens"),
-            Self::Responses => Some("/responses/input_tokens"),
-        }
-    }
+    pub const ROUTES_WITH_MODEL_IN_BODY: [(Self, Work, &str); 5] = [
+        (Self::ChatCompletions, Work::Answer, "/chat/completions"),
+        (Self::Messages, Work::Answer, "/messages"),
+        (Self::Responses, Work::Answer, "/responses"),
+        (Self::Messages, Work::CountTokens, "/messages/count_tokens"),
+        (
+            Self::Responses,
+            Work::CountTokens,
+            "/responses/input_tokens",
+        ),
+    ];
 
     pub fn credentials(self, provider: &Provider) -> (HeaderName, HeaderValue) {
         match self {
             Self::Messages => (X_API_KEY, provider.api_key.clone()),
+            Self::GenerateContent => (X_GOOG_API_KEY, provider.api_key.clone()),
             Self::ChatCompletions | Self::Responses => (AUTHORIZATION, provider.bearer.clone()),
         }
     }
@@ -231,36 +329,69 @@ impl Api {
     pub fn fields(self) -> &'static Fields {
         match self {
             Self::ChatCompletions => &CHAT_COMPLETIONS_FIELDS,
+            Self::GenerateContent => &GENERATE_CONTENT_FIELDS,
             Self::Messages => &MESSAGES_FIELDS,
             Self::Responses => &RESPONSES_FIELDS,
         }
     }
 
-    pub fn passes_tool_on(self, kind: Option<&str>) -> bool {
-        match (self, kind) {
-            (Self::Messages, None | Some("custom")) => true,
-            (Self::Messages, Some(kind)) => MESSAGES_TOOL_KINDS_BY_VERSION
-                .iter()
-                .any(|versioned| kind.starts_with(versioned)),
-            (Self::Responses, Some(kind)) => RESPONSES_TOOL_KINDS.contains(&kind),
-            (Self::ChatCompletions, Some("function" | "custom")) => true,
-            (Self::Responses | Self::ChatCompletions, None) => false,
-            (Self::ChatCompletions, Some(_)) => false,
-        }
-    }
-
-    pub fn passes_query_on(self, query: &str) -> bool {
-        query.is_empty() || (self == Self::Messages && query == "beta=true")
-    }
-
-    pub fn headers_passed_on(self) -> &'static [HeaderName] {
+    pub fn refused_tool(self, tool: &Value) -> Option<&str> {
+        let kind = tool["type"].as_str();
         match self {
-            Self::Messages => &MESSAGES_HEADERS,
-            Self::ChatCompletions | Self::Responses => &[],
+            Self::ChatCompletions => None,
+            Self::GenerateContent => tool.as_object()?.keys().map(String::as_str).find(|name| {
+                matches!(
+                    name.replace('_', "").to_ascii_lowercase().as_str(),
+                    "googlesearch"
+                        | "googlesearchretrieval"
+                        | "googlemaps"
+                        | "enterprisewebsearch"
+                        | "filesearch"
+                )
+            }),
+            Self::Messages => kind
+                .filter(|kind| kind.starts_with("code_execution_") || kind.starts_with("advisor_")),
+            Self::Responses => kind.filter(|kind| match *kind {
+                "code_interpreter"
+                | "file_search"
+                | "image_generation"
+                | "web_search_preview"
+                | "programmatic_tool_calling" => true,
+                "shell" => tool["environment"]["type"] != "local",
+                _ => false,
+            }),
         }
     }
 
-    pub fn passes_beta_on(self, beta: &str) -> bool {
-        self == Self::Messages && MESSAGES_BETAS.contains(&beta)
+    pub fn headers_passed_on(self, given: &HeaderMap) -> Result<HeaderMap, Refusal> {
+        let names: &[HeaderName] = match self {
+            Self::Messages => &MESSAGES_HEADERS,
+            Self::ChatCompletions | Self::GenerateContent | Self::Responses => &[],
+        };
+        let mut passed_on = HeaderMap::new();
+        for name in names {
+            for value in given.get_all(name) {
+                if *name == ANTHROPIC_BETA
+                    && let Some(beta) = value
+                        .as_bytes()
+                        .split(|&byte| byte == b',')
+                        .map(<[u8]>::trim_ascii)
+                        .find(|beta| {
+                            let flag_length = REFUSED_BETA.len().min(beta.len());
+                            beta[..flag_length].eq_ignore_ascii_case(REFUSED_BETA)
+                        })
+                {
+                    return Err(Refusal::invalid_request(
+                        "beta_unsupported",
+                        format!(
+                            "The gateway does not pass on the beta {:?}.",
+                            String::from_utf8_lossy(beta)
+                        ),
+                    ));
+                }
+                passed_on.append(name.clone(), value.clone());
+            }
+        }
+        Ok(passed_on)
     }
 }

@@ -6,7 +6,10 @@ use serde::de::{DeserializeSeed, Deserializer, Error, MapAccess, Visitor};
 use serde_json::{Map, Value, json, value::RawValue};
 
 use crate::{
-    api::{Api, Fields, FixedField, Work},
+    api::{
+        Api, FIELDS_OF_WRAPPED_GENERATE_CONTENT_REQUEST, Fields, FixedField,
+        GENERATE_CONTENT_REQUEST_FIELDS, Work,
+    },
     refusal::Refusal,
 };
 
@@ -15,6 +18,7 @@ const STREAM: &str = "stream";
 const STREAM_OPTIONS: &str = "stream_options";
 const TOOLS: &str = "tools";
 const NULL: &str = "null";
+const HOST_OF_FILES_STORED_AT_GOOGLE: &str = "generativelanguage.googleapis.com";
 
 pub struct Request<'body> {
     body: &'body Bytes,
@@ -23,7 +27,28 @@ pub struct Request<'body> {
 }
 
 impl<'body> Request<'body> {
-    pub fn read(body: &'body Bytes, api: Api) -> Result<Self, Refusal> {
+    pub fn read(body: &'body Bytes, api: Api, work: Work) -> Result<Self, Refusal> {
+        let wraps_a_request = api == Api::GenerateContent && work == Work::CountTokens;
+        let wrapping_fields: &[&str] = match wraps_a_request {
+            true => &GENERATE_CONTENT_REQUEST_FIELDS,
+            false => &[],
+        };
+        let request = Self::read_passing_also(body, api, wrapping_fields)?;
+        for name in wrapping_fields {
+            if request.field(name) != NULL {
+                let wrapped = request.body.slice(request.byte_range_of(name));
+                let fields_of_wrapped = &FIELDS_OF_WRAPPED_GENERATE_CONTENT_REQUEST;
+                Request::read_passing_also(&wrapped, api, fields_of_wrapped)?;
+            }
+        }
+        Ok(request)
+    }
+
+    fn read_passing_also(
+        body: &'body Bytes,
+        api: Api,
+        also_passed_as_given: &[&str],
+    ) -> Result<Self, Refusal> {
         let unreadable = |_| {
             Refusal::invalid_request(
                 "invalid_body",
@@ -34,8 +59,8 @@ impl<'body> Request<'body> {
         let fields = TopLevelFields.deserialize(&mut json).map_err(unreadable)?;
         json.end().map_err(unreadable)?;
         let request = Self { body, api, fields };
-        request.require_known_fields()?;
-        request.require_known_tools_and_nothing_stored()?;
+        request.require_known_fields(also_passed_as_given)?;
+        request.refuse_tools_and_stored_references()?;
         Ok(request)
     }
 
@@ -115,7 +140,7 @@ impl<'body> Request<'body> {
         upstream_body.into()
     }
 
-    fn require_known_fields(&self) -> Result<(), Refusal> {
+    fn require_known_fields(&self, also_passed_as_given: &[&str]) -> Result<(), Refusal> {
         let Fields {
             passed_as_given,
             passed_only_as,
@@ -131,7 +156,8 @@ impl<'body> Request<'body> {
                     ));
                 }
                 Some(_) => {}
-                None if passed_as_given.contains(&name.as_str()) => {}
+                None if passed_as_given.contains(&name.as_str())
+                    || also_passed_as_given.contains(&name.as_str()) => {}
                 None => {
                     return Err(Refusal::invalid_request(
                         "field_unsupported",
@@ -143,9 +169,12 @@ impl<'body> Request<'body> {
         Ok(())
     }
 
-    fn require_known_tools_and_nothing_stored(&self) -> Result<(), Refusal> {
+    fn refuse_tools_and_stored_references(&self) -> Result<(), Refusal> {
         for tool in &self.items_of(TOOLS)? {
-            self.require_known_tool(tool)?;
+            self.check_tool(tool)?;
+        }
+        if self.api == Api::GenerateContent {
+            return self.check_generate_content_turns();
         }
         for turn in &self.items_of(self.api.fields().conversation)? {
             let refers_to_stored_item = turn["type"] == "item_reference";
@@ -159,10 +188,7 @@ impl<'body> Request<'body> {
                     .any(|holder| !holder["file_id"].is_null())
             };
             if refers_to_stored_item || blocks.clone().any(refers_to_stored_file) {
-                return Err(Refusal::invalid_request(
-                    "reference_unsupported",
-                    "The gateway does not pass on a reference to something stored at the provider.",
-                ));
+                return Err(stored_reference());
             }
             let tools_added_by_openai_client = items(&turn["tools"]);
             let tools_added_by_anthropic_client = blocks
@@ -170,27 +196,56 @@ impl<'body> Request<'body> {
                 .map(|block| &block["tool"]["definition"])
                 .filter(|definition| !definition.is_null());
             for tool in tools_added_by_openai_client.chain(tools_added_by_anthropic_client) {
-                self.require_known_tool(tool)?;
+                self.check_tool(tool)?;
             }
         }
         Ok(())
     }
 
-    fn require_known_tool(&self, tool: &Value) -> Result<(), Refusal> {
-        let kind = tool["type"].as_str();
-        if !self.api.passes_tool_on(kind) {
-            let tool = match kind {
-                Some(kind) => format!("a tool of type {kind:?}"),
-                None => "a tool that names no type".to_owned(),
-            };
+    fn check_generate_content_turns(&self) -> Result<(), Refusal> {
+        for turn in &self.items_of(self.api.fields().conversation)? {
+            for tool in items(&turn["tools"]) {
+                self.check_tool(tool)?;
+            }
+            self.check_generate_content_parts(&turn["parts"])?;
+        }
+        for name in ["systemInstruction", "system_instruction"] {
+            let instruction = serde_json::from_str::<Value>(self.field(name))
+                .map_err(|_| unreadable_field(name))?;
+            self.check_generate_content_parts(&instruction["parts"])?;
+        }
+        Ok(())
+    }
+
+    fn check_generate_content_parts(&self, parts: &Value) -> Result<(), Refusal> {
+        for part in items(parts) {
+            let file_uris = ["fileData", "file_data"]
+                .into_iter()
+                .flat_map(|data| ["fileUri", "file_uri"].map(|uri| &part[data][uri]));
+            if file_uris.filter_map(Value::as_str).any(|uri| {
+                uri.to_ascii_lowercase()
+                    .contains(HOST_OF_FILES_STORED_AT_GOOGLE)
+            }) {
+                return Err(stored_reference());
+            }
+            self.check_tool(&part["tool"]["definition"])?;
+            for response in ["functionResponse", "function_response"] {
+                self.check_generate_content_parts(&part[response]["parts"])?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_tool(&self, tool: &Value) -> Result<(), Refusal> {
+        if let Some(kind) = self.api.refused_tool(tool) {
             return Err(Refusal::invalid_request(
                 "tool_unsupported",
-                format!("The gateway does not pass on {tool}."),
+                format!("The gateway does not pass on a tool of type {kind:?}."),
             ));
         }
         let tools_of_namespace = items(&tool["tools"]);
         for tool in tools_of_namespace {
-            self.require_known_tool(tool)?;
+            self.check_tool(tool)?;
         }
         Ok(())
     }
@@ -199,10 +254,7 @@ impl<'body> Request<'body> {
         match serde_json::from_str(self.field(list_field)) {
             Ok(Value::Array(items)) => Ok(items),
             Ok(Value::Null | Value::String(_)) => Ok(Vec::new()),
-            _ => Err(Refusal::invalid_request(
-                "invalid_body",
-                format!("The gateway cannot read the field {list_field:?}."),
-            )),
+            _ => Err(unreadable_field(list_field)),
         }
     }
 
@@ -215,6 +267,20 @@ impl<'body> Request<'body> {
         let start = value.as_ptr() as usize - self.body.as_ptr() as usize;
         start..start + value.len()
     }
+}
+
+fn unreadable_field(name: &str) -> Refusal {
+    Refusal::invalid_request(
+        "invalid_body",
+        format!("The gateway cannot read the field {name:?}."),
+    )
+}
+
+fn stored_reference() -> Refusal {
+    Refusal::invalid_request(
+        "reference_unsupported",
+        "The gateway does not pass on a reference to something stored at the provider.",
+    )
 }
 
 fn items(list: &Value) -> impl Iterator<Item = &Value> + Clone {
