@@ -146,10 +146,6 @@ impl Key {
         self.settings.limit_resets.period_start(today())
     }
 
-    pub fn period_started_on(&self) -> Option<NaiveDate> {
-        Some(self.period_start()).filter(|start| *start != NaiveDate::MIN)
-    }
-
     pub fn limit_resets_on(&self) -> Option<NaiveDate> {
         self.settings.limit_resets.next_period_start(today())
     }
@@ -279,6 +275,16 @@ impl Keys {
 
     pub fn restore(&self, name: &str) -> Result<(), KeyError> {
         self.change(name, |key| key.changed(key.settings.clone(), false))
+    }
+
+    pub fn delete(&self, name: &str) -> Result<(), KeyError> {
+        let _change = self.lock_changes();
+        let key = self.write().remove(name).ok_or(KeyError::NotFound)?;
+        self.store.write(Write::DeletedKey {
+            name: key.name.clone(),
+        });
+        self.store.flush();
+        Ok(())
     }
 
     fn change(&self, name: &str, changed: impl FnOnce(&Key) -> Key) -> Result<(), KeyError> {

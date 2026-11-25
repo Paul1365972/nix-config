@@ -31,7 +31,7 @@ Its own Interactions API takes another variant of `Api` in [api.rs](src/api.rs),
 
 ## Keys
 
-The dashboard makes, changes, revokes and restores keys and shows what each has spent, by provider, model and day.
+The dashboard makes, changes, revokes, restores and deletes keys and shows what each has spent, by provider, model and day.
 A key has a limit that resets every day, week or month, or never, which makes it a cap on all the key ever spends.
 It may have tighter limits for single providers; a limit of 0 keeps it off a provider.
 Days, weeks and months turn over at midnight UTC, weeks on Monday.

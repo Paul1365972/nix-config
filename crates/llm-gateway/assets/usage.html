@@ -6,14 +6,22 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="preload" href="/m-plus-2.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/shared.css">
+<script src="/theme.js"></script>
 <script type="module" src="/usage.js"></script>
 <main>
   <header class="topbar">
     <div class="brand">
-      <img src="/icon.svg" width="30" height="30" alt="">
+      <svg class="mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M8 7h16a5 5 0 0 1 5 5v1.2a2.8 2.8 0 0 0 0 5.6V20a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5v-1.2a2.8 2.8 0 0 0 0-5.6V12a5 5 0 0 1 5-5Z"/>
+        <circle cx="11" cy="16" r="2.4" fill="var(--anthropic)"/><circle cx="16" cy="16" r="2.4" fill="var(--openai)"/><circle cx="21" cy="16" r="2.4" fill="var(--google)"/>
+      </svg>
       <h1><b id="host"></b><span>usage</span></h1>
     </div>
     <nav>
+      <button class="icon-button" id="theme" aria-label="Switch between light and dark" title="Switch between light and dark">
+        <svg class="sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.75"/><path d="M8 1.5v1.25M8 13.25v1.25M1.5 8h1.25M13.25 8h1.25M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.300l.9-.9"/></svg>
+        <svg class="moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 9.8A5.75 5.75 0 0 1 6.2 2.5a5.75 5.75 0 1 0 7.3 7.3Z"/></svg>
+      </button>
       <button class="button primary" id="add-key"><span class="face">Add key</span></button>
     </nav>
   </header>

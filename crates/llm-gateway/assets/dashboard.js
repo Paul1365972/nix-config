@@ -1,12 +1,12 @@
 import {
-  button, copy, copyButton, count, dayBars, decode, dot, element, escaped, icons, modelsSummary, modelsTable, morph, periods, pool,
-  problemToast, providerName, request, resetWords, spendingTiles, sum, tiles, toast, tokenStrip, usd, whileBusy,
+  button, copy, copyButton, count, dayBars, decode, dot, element, escaped, icons, lastingNotice, modelsSummary, modelsTable, morph, periods, pool,
+  problemToast, providerName, request, resetWords, spendingTiles, sum, tiles, toast, tokenStrip, unansweredNotice, usd, whileBusy,
 } from "/shared.js";
 
 const REFRESH_INTERVAL_MILLISECONDS = 10000;
 const openKeys = new Set(), shownTokens = new Set(), tokens = new Map();
 const fields = element("key-form").elements;
-let overview, editedKey = null, keyToRevoke = null;
+let overview, loadedAt = null, editedKey = null, confirmed = null;
 
 const monthName = (month, options = { month: "long", year: "numeric" }) => new Date(`${month}-15T12:00:00Z`).toLocaleString("en", { ...options, timeZone: "UTC" });
 const daysIn = (month) => new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).getUTCDate();
@@ -50,8 +50,12 @@ function renderDetail(name, key, modelTallies) {
   const month = monthName(overview.month, { month: "long" });
   const models = `<div class="label-row"><h3>Models in ${month}</h3><span>${modelsSummary(modelTallies)}</span></div>` +
     modelsTable(modelTallies, `No requests in ${month}.`);
-  if (!key || key.is_revoked) return models;
   const attributes = `data-name="${escaped(name)}"`;
+  if (!key) return models;
+  if (key.is_revoked) {
+    return `${models}<div class="detail-actions"><span>Revoked. Restoring brings back its token and its spending.</span>` +
+      button({ kind: "quiet danger small", label: "Delete for good", attributes: `data-action="ask-delete" ${attributes}` }) + `</div>`;
+  }
   const strip = tokenStrip({
     id: name, prefix: key.token_prefix, secret: shownTokens.has(name) ? tokens.get(name).slice(key.token_prefix.length) : undefined, secretLength: key.token_secret_length,
     buttons: copyButton("Copy link", `data-action="copy-link" ${attributes}`, icons.link) + copyButton("Copy token", `data-action="copy-token" ${attributes}`),
@@ -69,7 +73,7 @@ function renderRow(name, largestSpending) {
   const showsLimit = isUsable && isThisMonth();
   const spent = showsLimit ? key.spent_usd : spentIn(modelTallies);
   const hasReachedLimit = showsLimit && spent >= key.limit_usd;
-  const below = !isUsable ? "revoked" : hasReachedLimit ? `<span class="flag">Limit reached</span>`
+  const below = !key ? "deleted" : key.is_revoked ? "revoked" : hasReachedLimit ? `<span class="flag">Limit reached</span>`
     : showsLimit && key.running_requests ? `<i class="live"></i>${key.running_requests} running` : "";
   const spending = showsLimit
     ? `<b class="${hasReachedLimit ? "reached" : ""}">${usd(spent)}</b> of ${usd(key.limit_usd)}<small>${periods[key.limit_resets] || "in total"}</small>`
@@ -104,6 +108,8 @@ function render() {
 
 async function load(month = overview?.month ?? "") {
   overview = await request("GET", `/api/overview${month ? `?month=${month}` : ""}`);
+  loadedAt = new Date();
+  lastingNotice(null);
   render();
 }
 
@@ -155,6 +161,14 @@ async function restore(name, control) {
   await load();
 }
 
+function confirm(title, words, label, change) {
+  confirmed = change;
+  element("confirm-title").textContent = title;
+  element("confirm-words").textContent = words;
+  element("confirm").firstElementChild.textContent = label;
+  element("confirm-dialog").showModal();
+}
+
 async function act(control) {
   const { action, text } = control.dataset, name = control.dataset.name ?? control.dataset.id;
   if (action === "close-dialog") control.closest("dialog").close();
@@ -164,9 +178,17 @@ async function act(control) {
   if (action === "edit") openForm(keyNamed(name));
   if (action === "restore") await restore(name, control);
   if (action === "ask-revoke") {
-    keyToRevoke = name;
-    element("revoke-title").textContent = `Revoke ${name}?`;
-    element("revoke-dialog").showModal();
+    confirm(`Revoke ${name}?`, "Requests with its token are refused from now on. You can restore the key later, with the same token and what it has spent.", "Revoke key", async () => {
+      await request("POST", `/api/keys/${encodeURIComponent(name)}/revoke`);
+      toast(`Revoked ${name}.`, { action: "Undo", onAction: () => restore(name).catch(problemToast) });
+    });
+  }
+  if (action === "ask-delete") {
+    confirm(`Delete ${name} for good?`, "Its token can never be restored, and the name becomes free again. What the key has spent stays in the months it was spent in.", "Delete key", async () => {
+      await request("DELETE", `/api/keys/${encodeURIComponent(name)}`);
+      [openKeys, shownTokens, tokens].forEach((names) => names.delete(name));
+      toast(`Deleted ${name}.`);
+    });
   }
   if (action === "reveal") {
     const isShown = !shownTokens.delete(name) && Boolean(await whileBusy(control, () => tokenOf(name))) && Boolean(shownTokens.add(name));
@@ -187,12 +209,9 @@ document.addEventListener("click", (event) => {
 element("earlier").onclick = () => load(overview.months[overview.months.indexOf(overview.month) + 1]).catch(problemToast);
 element("later").onclick = () => load(overview.months[overview.months.indexOf(overview.month) - 1]).catch(problemToast);
 element("new-key").onclick = () => openForm(null);
-element("revoke").onclick = () => whileBusy(element("revoke"), async () => {
-  await request("DELETE", `/api/keys/${encodeURIComponent(keyToRevoke)}`);
-  [openKeys, shownTokens, tokens].forEach((names) => names.delete(keyToRevoke));
-  element("revoke-dialog").close();
-  const name = keyToRevoke;
-  toast(`Revoked ${name}.`, { action: "Undo", onAction: () => restore(name).catch(problemToast) });
+element("confirm").onclick = () => whileBusy(element("confirm"), async () => {
+  await confirmed();
+  element("confirm-dialog").close();
   await load();
 }).catch(problemToast);
 element("key-form").onsubmit = (event) => {
@@ -209,6 +228,7 @@ element("key-form").onsubmit = (event) => {
   }).catch((problem) => { words.textContent = problem.message; });
 };
 
+const refresh = () => { if (!document.hidden && overview && isThisMonth()) load("").catch(() => unansweredNotice(loadedAt)); };
 load("").catch(problemToast);
-document.addEventListener("visibilitychange", () => { if (!document.hidden && overview && isThisMonth()) load("").catch(() => {}); });
-setInterval(() => { if (!document.hidden && overview && isThisMonth()) load("").catch(() => {}); }, REFRESH_INTERVAL_MILLISECONDS);
+document.addEventListener("visibilitychange", refresh);
+setInterval(refresh, REFRESH_INTERVAL_MILLISECONDS);

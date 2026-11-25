@@ -14,7 +14,7 @@ export const sum = (amounts) => amounts.reduce((total, amount) => total + amount
 const midnightUtc = (day) => new Date(`${day}T00:00:00Z`);
 export const dayAfter = (day, days) => new Date(midnightUtc(day).getTime() + days * 86400000).toISOString().slice(0, 10);
 const dayName = (day) => midnightUtc(day).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-export const clock = (moment) => moment.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const clock = (moment) => moment.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 function fromNow(moment) {
   const minutes = Math.max(1, Math.round((moment - Date.now()) / 60000));
   if (minutes < 90) return relatively.format(minutes, "minute");
@@ -106,7 +106,7 @@ function tile(key, id) {
 }
 export const spendingTiles = (rows, total) => `<ul class="tiles">${rows.map(({ id, spent, words }) =>
   `<li class="tile" data-provider="${escaped(id)}" style="--color:${provider(id).color}"><div class="tile-head"><b>${dot(id)}${providerName(id)}</b><span>${usd(spent)}</span></div>` +
-  `<div class="tile-bar" aria-hidden="true"><i class="spent" style="--share:${total ? 100 * spent / total : 0}%"></i></div><p>${words}</p></li>`).join("")}</ul>`;
+  `<div class="tile-bar" aria-hidden="true">${spent ? `<i class="spent" style="--share:${100 * spent / total}%"></i>` : ""}</div><p>${words}</p></li>`).join("")}</ul>`;
 export const tiles = (key) => `<ul class="tiles">${Object.keys(key.spent_usd_by_provider).map((id) => tile(key, id)).join("")}</ul>`;
 
 export function resetWords(key) {
@@ -120,7 +120,7 @@ export function resetWords(key) {
 export function modelsSummary(tallies) {
   const [requests, uncached, read] = ["requests", "uncached_input_tokens", "cache_read_tokens"].map((field) => sum(tallies.map(([, tally]) => tally[field])));
   if (!requests) return "";
-  const fromCache = uncached + read ? `, ${(100 * read / (uncached + read)).toFixed(1)}% of input read from cache` : "";
+  const fromCache = read ? `, ${(100 * read / (uncached + read)).toFixed(1)}% of input read from cache` : "";
   return `${count(requests)} ${requests === 1 ? "request" : "requests"}${fromCache}`;
 }
 export function modelsTable(tallies, wordsWhenEmpty) {
@@ -146,7 +146,8 @@ export function dayBars({ spentByDay, firstDay, dayCount, today, title, isWide, 
   const columns = days.map((day) => {
     const segments = Object.entries(spentByDay[day] ?? {}).filter(([, spent]) => spent > 0)
       .map(([id, spent]) => `<i style="--share:${100 * spent / largest}%;--color:${provider(id).color}"></i>`).join("");
-    return `<div class="day ${segments ? "" : "nothing"} ${day > today ? "ahead" : ""}" data-readout="${dayName(day)}: ${usd(totalOf(day))}">${segments || "<i></i>"}</div>`;
+    if (day > today) return `<div class="day nothing ahead"><i></i></div>`;
+    return `<div class="day ${segments ? "" : "nothing"}" data-readout="${dayName(day)}: ${usd(totalOf(day))}">${segments || "<i></i>"}</div>`;
   });
   return `<div class="days ${isWide ? "wide" : ""}"><div class="label-row"><h3>${title}</h3><span class="readout" data-default="${summary(total)}">${summary(total)}</span></div>` +
     `<div class="bars" role="img" aria-label="Spending per day, ${usd(total)} in all">${columns.join("")}</div></div>`;
@@ -213,18 +214,26 @@ function announce(words) {
   region.setAttribute("aria-live", "polite");
   region.textContent = words;
 }
+const toasts = () => element("toasts") ?? document.body.appendChild(Object.assign(document.createElement("div"), { id: "toasts", className: "toasts" }));
 let toastTimer;
 export function toast(words, { action, onAction, isProblem = false, milliseconds = 6000 } = {}) {
-  const toasts = element("toasts") ?? document.body.appendChild(Object.assign(document.createElement("div"), { id: "toasts", className: "toasts" }));
   const leave = (shown) => { shown.classList.add("leaving"); setTimeout(() => shown.remove(), 240); };
-  [...toasts.children].forEach(leave);
+  toasts().querySelectorAll(".toast:not(.lasting)").forEach(leave);
   const shown = Object.assign(document.createElement("div"), { className: `toast ${isProblem ? "problem-tone" : ""}`, textContent: words });
   shown.setAttribute("role", isProblem ? "alert" : "status");
   if (action) shown.append(Object.assign(document.createElement("button"), { textContent: action, onclick: () => { leave(shown); onAction(); } }));
-  toasts.append(shown);
+  toasts().append(shown);
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => leave(shown), milliseconds);
 }
+export function lastingNotice(words) {
+  const shown = toasts().querySelector(".lasting");
+  if (!words) return shown?.remove();
+  const notice = shown ?? toasts().insertAdjacentElement("afterbegin", Object.assign(document.createElement("div"), { className: "toast lasting" }));
+  notice.setAttribute("role", "alert");
+  notice.textContent = words;
+}
+export const unansweredNotice = (figuresFrom) => lastingNotice(`The gateway is not answering.${figuresFrom ? ` These figures are from ${clock(figuresFrom)}.` : ""}`);
 export const problemToast = (problem) => toast(problem.message, { isProblem: true });
 
 export async function request(method, path, { body, token } = {}) {
@@ -243,7 +252,7 @@ document.addEventListener("click", (event) => { if (event.target.matches("dialog
 document.addEventListener("wheel", (event) => { if (event.target.type === "number" && event.target === document.activeElement) event.target.blur(); }, { passive: true });
 let highlighted = [null, undefined];
 document.addEventListener("pointerover", (event) => {
-  const day = event.target.closest?.(".day");
+  const day = event.target.closest?.(".day[data-readout]");
   if (day) day.closest(".days").querySelector(".readout").textContent = day.dataset.readout;
   const scope = event.target.closest?.("[data-provider-scope]") ?? null;
   const id = scope ? event.target.closest("[data-provider]")?.dataset.provider : undefined;

@@ -289,7 +289,6 @@ async fn usage(
         "limit_usd_by_provider": key.settings.limit_usd_by_provider,
         "limit_resets": key.settings.limit_resets,
         "limit_requests_at_once": key.settings.limit_requests_at_once,
-        "period_started_on": key.period_started_on(),
         "limit_resets_on": key.limit_resets_on(),
         "running_requests": key.running_requests(),
         "spent_usd": spent_by_provider.values().copied().sum::<MicroUsd>(),

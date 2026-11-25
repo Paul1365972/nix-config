@@ -27,8 +27,9 @@ pub fn router_without_login(gateway: Arc<Gateway>) -> Router {
         .merge(page::dashboard_routes())
         .route("/api/overview", get(overview))
         .route("/api/keys", post(create_key))
-        .route("/api/keys/{name}", put(update_key).delete(revoke_key))
+        .route("/api/keys/{name}", put(update_key).delete(delete_key))
         .route("/api/keys/{name}/token", get(key_token))
+        .route("/api/keys/{name}/revoke", post(revoke_key))
         .route("/api/keys/{name}/restore", post(restore_key))
         .layer(middleware::from_fn(refuse_changes_from_other_sites))
         .with_state(gateway)
@@ -63,7 +64,6 @@ struct Overview {
     month: String,
     months: Vec<String>,
     providers: Vec<String>,
-    models: Vec<Arc<str>>,
     keys: Vec<KeyOverview>,
     tallies: TalliesByKey,
     today: NaiveDate,
@@ -79,7 +79,6 @@ struct KeyOverview {
     is_revoked: bool,
     token_prefix: String,
     token_secret_length: usize,
-    period_started_on: Option<NaiveDate>,
     limit_resets_on: Option<NaiveDate>,
     spent_usd: MicroUsd,
     spent_usd_by_provider: SpentByProvider,
@@ -103,7 +102,6 @@ async fn overview(
             is_revoked: key.is_revoked,
             token_prefix: token_prefix.to_owned(),
             token_secret_length: token_secret.len(),
-            period_started_on: key.period_started_on(),
             limit_resets_on: key.limit_resets_on(),
             spent_usd: spent_usd_by_provider.values().copied().sum(),
             spent_usd_by_provider,
@@ -115,7 +113,6 @@ async fn overview(
         month: month.to_string(),
         months: months.iter().rev().map(Month::to_string).collect(),
         providers: gateway.providers().map(str::to_owned).collect(),
-        models: gateway.models().map(|model| model.name.clone()).collect(),
         keys: keys.collect(),
         tallies: gateway.ledger.month(month),
         today: today(),
@@ -157,6 +154,15 @@ async fn key_token(
 ) -> Result<Json<Value>, Refusal> {
     let key = gateway.keys.named(&name).ok_or(KeyError::NotFound)?;
     Ok(Json(json!({ "token": key.token })))
+}
+
+async fn delete_key(
+    State(gateway): State<Arc<Gateway>>,
+    Path(name): Path<String>,
+) -> Result<StatusCode, Refusal> {
+    block_in_place(|| gateway.keys.delete(&name))?;
+    tracing::info!(key = name, "deleted a key");
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn restore_key(

@@ -1,6 +1,6 @@
 import {
-  button, clock, copy, copyButton, dayAfter, dayBars, decode, element, escaped, modelsSummary, modelsTable, morph,
-  periods, pool, providerName, request, resetWords, tiles, toast, tokenStrip, usd, whileBusy,
+  button, copy, copyButton, dayAfter, dayBars, decode, element, escaped, lastingNotice, modelsSummary, modelsTable, morph,
+  periods, pool, providerName, request, resetWords, tiles, toast, tokenStrip, unansweredNotice, usd, whileBusy,
 } from "/shared.js";
 
 const STORED_KEYS = "llm-gateway.keys";
@@ -8,7 +8,7 @@ const REFRESH_INTERVAL_MILLISECONDS = 30000;
 const DAYS_SHOWN = 14;
 const COLLAPSE_MILLISECONDS = 260;
 const shownTokens = new Set();
-let keys = [], updatedAt = null, unansweredAt = null;
+let keys = [], answeredAt = null;
 
 try { keys = JSON.parse(localStorage.getItem(STORED_KEYS)) ?? []; } catch { keys = []; }
 keys.forEach((key) => { key.id = crypto.randomUUID(); });
@@ -75,11 +75,7 @@ function renderFooter() {
   const chat = chatProviders.length ? [["Chat Completions", `${location.origin}/v1`, `for ${chatProviders.join(" and ")}, with models named provider/model`]] : [];
   const endpoints = [...ownApis, ...chat].map(([name, url, words]) =>
     `<li><b>${name}</b><code>${escaped(url)}</code>${button({ kind: "ghost small", label: "Copy", done: "Copied", attributes: `data-action="copy-text" data-text="${escaped(url)}"` })}<span>${words}</span></li>`).join("");
-  const refreshed = unansweredAt
-    ? `The gateway did not answer at ${clock(unansweredAt)}.${updatedAt ? ` These are the figures from ${clock(updatedAt)}.` : ""} Trying again every ${REFRESH_INTERVAL_MILLISECONDS / 1000} seconds.`
-    : updatedAt ? `Updated at ${clock(updatedAt)}, and again every ${REFRESH_INTERVAL_MILLISECONDS / 1000} seconds while this tab is open.` : "";
-  return (endpoints && `<div><div class="label-row"><h3>Base URLs for a client</h3><span>The key's token is the API key</span></div><ul class="endpoints">${endpoints}</ul></div>`) +
-    (keys.length ? `<p>${refreshed}</p>` : "");
+  return endpoints && `<div><div class="label-row"><h3>Base URLs for a client</h3><span>The key's token is the API key</span></div><ul class="endpoints">${endpoints}</ul></div>`;
 }
 
 function render() {
@@ -91,8 +87,8 @@ function render() {
 
 async function refresh() {
   await Promise.all(keys.map(load));
-  if (keys.length && keys.every((key) => key.problem === "unanswered")) unansweredAt = new Date();
-  else [updatedAt, unansweredAt] = [new Date(), null];
+  if (keys.length && keys.every((key) => key.problem === "unanswered")) unansweredNotice(answeredAt);
+  else lastingNotice(null), answeredAt = new Date();
   store();
   render();
 }

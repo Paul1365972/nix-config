@@ -32,12 +32,14 @@ fn routes<S: Clone + Send + Sync + 'static>(
     script: &'static str,
 ) -> Router<S> {
     let shared_script = include_str!("../assets/shared.js");
+    let theme_script = include_str!("../assets/theme.js");
     let shared_styles = include_str!("../assets/shared.css");
     let icon = include_str!("../assets/icon.svg");
     Router::new()
         .route("/", get(async move || page(html)))
         .route(script_path, get(async move || file(JAVASCRIPT, script)))
         .route("/shared.js", get(async || file(JAVASCRIPT, shared_script)))
+        .route("/theme.js", get(async || file(JAVASCRIPT, theme_script)))
         .route(
             "/shared.css",
             get(async || file("text/css; charset=utf-8", shared_styles)),
