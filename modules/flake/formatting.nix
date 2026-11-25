@@ -8,7 +8,6 @@
   imports = [ (inputs.treefmt-nix.flakeModule or { }) ];
 
   perSystem.treefmt = {
-    settings.global.excludes = [ "references/**" ];
     settings.formatter = {
       deadnix.priority = 1;
       statix.priority = 2;

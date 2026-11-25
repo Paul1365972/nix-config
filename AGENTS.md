@@ -14,7 +14,6 @@ comin deploys `main` to every host, so a push is a deploy.
 
 - Every `.nix` file under `modules/` is auto-imported.
 - `flake.nix` is generated: edit `flake-file.inputs`, then run `nix run .#write-flake`.
-- Upstream sources: `references/repos/`, populated by `scripts/clone-references.sh`.
 
 ## Workflow
 
