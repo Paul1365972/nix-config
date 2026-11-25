@@ -126,7 +126,9 @@ svg { flex-shrink: 0; }
 .status b { font-weight: 600; color: var(--ink); }
 .status + .status { margin-top: .1rem; color: var(--quiet); }
 
-.days { width: 13rem; }
+.days { width: 15rem; }
+.days .label-row { flex-wrap: nowrap; }
+.days h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .days.wide { width: auto; margin-top: 1.25rem; }
 .label-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 .75rem; font-size: .8125rem; color: var(--quiet); }
 .label-row h3 { font-size: .8125rem; font-weight: 600; white-space: nowrap; color: var(--soft); }
