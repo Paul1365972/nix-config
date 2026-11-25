@@ -95,10 +95,10 @@ in
       ) providers;
 
       services.cloudflared.publicHosts."llm.paul.moe" = "http://${listen}";
-      services.tailscale.serve.services.llm.endpoints."tcp:443" = "http://${dashboardListen}";
-      services.homepage-dashboard.entries."Model Gateway" = {
+      services.tailscale.serve.services.llm-gateway.endpoints."tcp:443" = "http://${dashboardListen}";
+      services.homepage-dashboard.entries."LLM Gateway" = {
         description = "Keys and spending";
-        href = "https://llm.echidna-ghost.ts.net";
+        href = "https://llm-gateway.echidna-ghost.ts.net";
         icon = "mdi-key-chain-variant";
       };
 
