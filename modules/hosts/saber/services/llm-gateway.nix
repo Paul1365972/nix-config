@@ -16,7 +16,6 @@ let
         "chat_completions"
       ];
     };
-    # Only Chat Completions reaches Google so far; the gateway's README says what serving its own API takes.
     google = {
       base_url = "https://generativelanguage.googleapis.com/v1beta/openai";
       apis = [ "chat_completions" ];

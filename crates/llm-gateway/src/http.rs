@@ -19,7 +19,7 @@ use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    api::{Api, X_API_KEY},
+    api::{ANTHROPIC_BETA, Api, X_API_KEY},
     dashboard,
     gateway::Gateway,
     keys::Key,
@@ -34,12 +34,6 @@ use crate::{
 const REQUEST_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 const DRAIN_LIMIT: Duration = Duration::from_secs(30);
 const DAYS_SHOWN: u64 = 30;
-
-const FORWARDED_REQUEST_HEADERS: [HeaderName; 3] = [
-    HeaderName::from_static("anthropic-version"),
-    HeaderName::from_static("anthropic-beta"),
-    HeaderName::from_static("openai-beta"),
-];
 
 const FORWARDED_RESPONSE_HEADERS: [HeaderName; 6] = [
     CONTENT_TYPE,
@@ -152,8 +146,20 @@ async fn forward(
     request: Request,
 ) -> Result<Response, Refusal> {
     let key = authenticate(&gateway, request.headers())?;
+    let headers_passed_on = headers_passed_on(api, request.headers())?;
+    let query = request.uri().query().unwrap_or_default();
+    if !api.passes_query_on(query) {
+        return Err(Refusal::invalid_request(
+            "query_unsupported",
+            format!("The gateway does not pass on the query {query:?}."),
+        ));
+    }
+    let query_of_url = match query {
+        "" => String::new(),
+        query => format!("?{query}"),
+    };
     let running_request = gateway.run_request(&key)?;
-    let (parts, body) = request.into_parts();
+    let body = request.into_body();
     let body = to_bytes(body, REQUEST_BODY_LIMIT_BYTES).await.map_err(|_| {
         Refusal::invalid_request(
             "unreadable_body",
@@ -161,28 +167,16 @@ async fn forward(
         )
     })?;
     let request = RequestBody::read(&body, api)?;
-    request.require_list_price()?;
     let model = gateway.model_served(&key, api, &request.model_name(route_provider)?)?;
     let provider = model.provider.clone();
     let model_name_carries_provider = route_provider.is_none();
     let upstream_body = request.upstream_body(model_name_carries_provider);
 
-    let query = parts.uri.query().map(|query| format!("?{query}"));
-    let url = format!(
-        "{}{}{}",
-        provider.base_url,
-        api.path(),
-        query.unwrap_or_default()
-    );
-    let mut headers = HeaderMap::new();
+    let url = format!("{}{}{query_of_url}", provider.base_url, api.path());
+    let mut headers = headers_passed_on;
     let (credential, value) = api.credentials(&provider);
     headers.insert(credential, value);
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    for name in FORWARDED_REQUEST_HEADERS {
-        for value in parts.headers.get_all(&name) {
-            headers.append(name.clone(), value.clone());
-        }
-    }
 
     let sending = gateway
         .client
@@ -239,6 +233,26 @@ async fn forward(
         Body::new(reqwest::Body::from(upstream))
     };
     Ok(response)
+}
+
+fn headers_passed_on(api: Api, given: &HeaderMap) -> Result<HeaderMap, Refusal> {
+    let mut passed_on = HeaderMap::new();
+    for name in api.headers_passed_on() {
+        for value in given.get_all(name) {
+            let betas = match *name == ANTHROPIC_BETA {
+                true => value.to_str().unwrap_or_default().split(',').collect(),
+                false => Vec::new(),
+            };
+            if let Some(beta) = betas.iter().find(|beta| !api.passes_beta_on(beta.trim())) {
+                return Err(Refusal::invalid_request(
+                    "beta_unsupported",
+                    format!("The gateway does not pass on the beta {:?}.", beta.trim()),
+                ));
+            }
+            passed_on.append(name.clone(), value.clone());
+        }
+    }
+    Ok(passed_on)
 }
 
 fn authenticate(gateway: &Gateway, headers: &HeaderMap) -> Result<Arc<Key>, Refusal> {
