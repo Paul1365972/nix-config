@@ -19,9 +19,9 @@ use tokio::{sync::oneshot, time::sleep};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    api::{ANTHROPIC_BETA, Api, X_API_KEY},
+    api::{ANTHROPIC_BETA, Api, Work, X_API_KEY},
     dashboard,
-    gateway::{Gateway, Provider},
+    gateway::{Gateway, Model, Provider},
     keys::Key,
     ledger::today,
     meter::{Meter, relay},
@@ -51,12 +51,12 @@ pub async fn serve(
 ) -> Result<()> {
     let router = Router::new()
         .merge(page::usage_routes())
-        .route("/v1/chat/completions", post(complete_chat))
-        .route("/{provider}/v1/messages", post(create_message))
-        .route("/{provider}/v1/responses", post(create_response))
-        .route("/v1/models", get(models))
+        .merge(api_routes())
+        .route("/v1/models", get(models_of_chat_completions))
+        .route("/{provider}/v1/models", get(models_of_provider))
         .route("/v1/usage", get(usage))
         .route("/health", get(health))
+        .fallback(no_route)
         .with_state(gateway.clone());
     let listener = bind(listen).await?;
     let dashboard_listener = bind(dashboard_listen).await?;
@@ -122,37 +122,58 @@ async fn stop_signal() {
     interrupt.await;
 }
 
-async fn complete_chat(
-    State(gateway): State<Arc<Gateway>>,
-    request: Request,
-) -> Result<Response, Refusal> {
-    forward(gateway, Api::ChatCompletions, None, request).await
+fn api_routes() -> Router<Arc<Gateway>> {
+    let with_provider_in_model =
+        |api, work| post(move |State(gateway), request| forward(gateway, api, work, None, request));
+    let with_provider_in_path = |api, work| {
+        post(
+            move |State(gateway), Path(provider): Path<String>, request| async move {
+                forward(gateway, api, work, Some(&provider), request).await
+            },
+        )
+    };
+    let mut routes = Router::new();
+    for api in Api::ALL {
+        let path = api.path();
+        routes = routes
+            .route(
+                &format!("/v1{path}"),
+                with_provider_in_model(api, Work::Answer),
+            )
+            .route(
+                &format!("/{{provider}}/v1{path}"),
+                with_provider_in_path(api, Work::Answer),
+            );
+        if let Some(path) = api.path_to_count_tokens() {
+            routes = routes.route(
+                &format!("/{{provider}}/v1{path}"),
+                with_provider_in_path(api, Work::CountTokens),
+            );
+        }
+    }
+    routes
 }
 
-async fn create_message(
-    State(gateway): State<Arc<Gateway>>,
-    Path(provider): Path<String>,
-    request: Request,
-) -> Result<Response, Refusal> {
-    forward(gateway, Api::Messages, Some(&provider), request).await
-}
-
-async fn create_response(
-    State(gateway): State<Arc<Gateway>>,
-    Path(provider): Path<String>,
-    request: Request,
-) -> Result<Response, Refusal> {
-    forward(gateway, Api::Responses, Some(&provider), request).await
+async fn no_route(request: Request) -> Refusal {
+    let route = format!("{} {}", request.method(), request.uri().path());
+    let _ = to_bytes(request.into_body(), REQUEST_BODY_LIMIT_BYTES).await;
+    Refusal::new(
+        StatusCode::NOT_FOUND,
+        "not_found_error",
+        "no_route",
+        format!("The gateway has no route {route}."),
+    )
 }
 
 async fn forward(
     gateway: Arc<Gateway>,
     api: Api,
+    work: Work,
     route_provider: Option<&str>,
     request: Request,
 ) -> Result<Response, Refusal> {
     let key = authenticate(&gateway, request.headers())?;
-    let answer = answer(gateway, key.clone(), api, route_provider, request).await;
+    let answer = answer(gateway, key.clone(), api, work, route_provider, request).await;
     answer.inspect_err(|refusal| {
         tracing::info!(key = %key.name, ?api, %refusal, "refused a request");
     })
@@ -162,6 +183,7 @@ async fn answer(
     gateway: Arc<Gateway>,
     key: Arc<Key>,
     api: Api,
+    work: Work,
     route_provider: Option<&str>,
     request: Request,
 ) -> Result<Response, Refusal> {
@@ -189,9 +211,17 @@ async fn answer(
     let model = gateway.model_served(&key, api, &request.model_name(route_provider)?)?;
     let provider = model.provider.clone();
     let model_name_carries_provider = route_provider.is_none();
-    let upstream_body = request.upstream_body(model_name_carries_provider);
+    let upstream_body = request.upstream_body(model_name_carries_provider, work);
 
-    let url = format!("{}{}{query_of_url}", provider.base_url, api.path());
+    let path = match work {
+        Work::Answer => Some(api.path()),
+        Work::CountTokens => api.path_to_count_tokens(),
+    };
+    let url = format!(
+        "{}{}{query_of_url}",
+        provider.base_url,
+        path.unwrap_or_default()
+    );
     let mut headers = headers_passed_on;
     let (credential, value) = api.credentials(&provider);
     headers.insert(credential, value);
@@ -203,6 +233,10 @@ async fn answer(
         .headers(headers)
         .body(upstream_body);
     let meter = Meter::start(gateway, key, model, api, running_request);
+    let meter = match work {
+        Work::Answer => meter,
+        Work::CountTokens => meter.unbilled(),
+    };
     let (answer, answered) = oneshot::channel();
     tokio::spawn(exchange_outliving_the_client(
         sending, meter, provider, answer,
@@ -318,19 +352,53 @@ fn authenticate(gateway: &Gateway, headers: &HeaderMap) -> Result<Arc<Key>, Refu
     })
 }
 
-async fn models(
+async fn models_of_chat_completions(
     State(gateway): State<Arc<Gateway>>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, Refusal> {
     authenticate(&gateway, &headers)?;
-    let models: Vec<Value> = gateway
-        .models()
-        .filter(|model| model.provider.serves(Api::ChatCompletions))
-        .map(|model| {
-            json!({ "id": model.name, "object": "model", "created": 0, "owned_by": model.provider.name })
+    let served = |model: &&Model| model.provider.serves(Api::ChatCompletions);
+    let models = gateway.models().filter(served);
+    Ok(Json(listed(models.map(|model| (&*model.name, model)))))
+}
+
+async fn models_of_provider(
+    State(gateway): State<Arc<Gateway>>,
+    Path(provider): Path<String>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, Refusal> {
+    authenticate(&gateway, &headers)?;
+    let models = gateway.models().filter_map(|model| {
+        let (model_provider, name_in_provider) = model.name.split_once('/')?;
+        (model_provider == provider).then_some((name_in_provider, model))
+    });
+    Ok(Json(listed(models)))
+}
+
+fn listed<'model>(models: impl Iterator<Item = (&'model str, &'model Model)>) -> Value {
+    let models: Vec<Value> = models
+        .map(|(name, model)| {
+            let as_openai_clients_read_it =
+                json!({ "id": name, "object": "model", "created": 0, "owned_by": model.provider.name });
+            let as_anthropic_clients_read_it_too =
+                json!({ "type": "model", "display_name": name, "created_at": "1970-01-01T00:00:00Z" });
+            let mut model = as_openai_clients_read_it;
+            model
+                .as_object_mut()
+                .into_iter()
+                .zip(as_anthropic_clients_read_it_too.as_object())
+                .for_each(|(model, more)| model.extend(more.clone()));
+            model
         })
         .collect();
-    Ok(Json(json!({ "object": "list", "data": models })))
+    let id = |model: Option<&Value>| model.map(|model| model["id"].clone());
+    json!({
+        "object": "list",
+        "has_more": false,
+        "first_id": id(models.first()),
+        "last_id": id(models.last()),
+        "data": models,
+    })
 }
 
 async fn usage(

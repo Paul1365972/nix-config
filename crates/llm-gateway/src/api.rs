@@ -16,6 +16,12 @@ pub enum Api {
     Responses,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Work {
+    Answer,
+    CountTokens,
+}
+
 pub struct Fields {
     pub passed_as_given: &'static [&'static str],
     pub passed_only_as: &'static [FixedField],
@@ -58,8 +64,18 @@ const CHAT_COMPLETIONS_FIELDS: Fields = Fields {
         "prompt_cache_key",
         "prompt_cache_retention",
         "prompt_cache_options",
+        "prediction",
+        "functions",
+        "function_call",
     ],
-    passed_only_as: &[DEFAULT_TIER, NOTHING_STORED],
+    passed_only_as: &[
+        DEFAULT_TIER,
+        NOTHING_STORED,
+        FixedField {
+            name: "modalities",
+            json: "[\"text\"]",
+        },
+    ],
     stated_when_left_out: &[],
     conversation: "messages",
 };
@@ -149,21 +165,58 @@ const NOTHING_STORED: FixedField = FixedField {
     json: "false",
 };
 
-const MESSAGES_BETAS: [&str; 5] = [
+const MESSAGES_BETAS: [&str; 13] = [
     "interleaved-thinking-2025-05-14",
     "thinking-binding-controls-2026-08-01",
+    "thinking-display-updates-2026-08-18",
+    "thinking-token-count-2026-05-13",
+    "effort-2025-11-24",
     "compact-2026-01-12",
+    "context-management-2025-06-27",
     "mid-conversation-output-config-2026-07-01",
     "inline-tools-2026-09-15",
+    "structured-outputs-2025-11-13",
+    "web-fetch-2025-09-10",
+    "pdfs-2024-09-25",
+    "prompt-caching-2024-07-31",
 ];
-const MESSAGES_WEB_SEARCH_TOOL_KINDS: &str = "web_search_";
+const MESSAGES_TOOL_KINDS_BY_VERSION: [&str; 7] = [
+    "web_search_",
+    "web_fetch_",
+    "tool_search_tool_",
+    "bash_",
+    "text_editor_",
+    "memory_",
+    "computer_",
+];
+const RESPONSES_TOOL_KINDS: [&str; 9] = [
+    "function",
+    "custom",
+    "namespace",
+    "web_search",
+    "tool_search",
+    "apply_patch",
+    "local_shell",
+    "computer",
+    "computer_use_preview",
+];
 
 impl Api {
+    pub const ALL: [Self; 3] = [Self::ChatCompletions, Self::Messages, Self::Responses];
+
     pub fn path(self) -> &'static str {
         match self {
             Self::ChatCompletions => "/chat/completions",
             Self::Messages => "/messages",
             Self::Responses => "/responses",
+        }
+    }
+
+    pub fn path_to_count_tokens(self) -> Option<&'static str> {
+        match self {
+            Self::ChatCompletions => None,
+            Self::Messages => Some("/messages/count_tokens"),
+            Self::Responses => Some("/responses/input_tokens"),
         }
     }
 
@@ -185,10 +238,13 @@ impl Api {
     pub fn passes_tool_on(self, kind: Option<&str>) -> bool {
         match (self, kind) {
             (Self::Messages, None | Some("custom")) => true,
-            (Self::Messages, Some(kind)) => kind.starts_with(MESSAGES_WEB_SEARCH_TOOL_KINDS),
-            (Self::Responses, Some("function" | "custom" | "namespace" | "web_search")) => true,
+            (Self::Messages, Some(kind)) => MESSAGES_TOOL_KINDS_BY_VERSION
+                .iter()
+                .any(|versioned| kind.starts_with(versioned)),
+            (Self::Responses, Some(kind)) => RESPONSES_TOOL_KINDS.contains(&kind),
             (Self::ChatCompletions, Some("function" | "custom")) => true,
-            (Self::Responses | Self::ChatCompletions, _) => false,
+            (Self::Responses | Self::ChatCompletions, None) => false,
+            (Self::ChatCompletions, Some(_)) => false,
         }
     }
 

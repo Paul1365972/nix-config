@@ -6,7 +6,7 @@ use serde::de::{DeserializeSeed, Deserializer, Error, MapAccess, Visitor};
 use serde_json::{Map, Value, json, value::RawValue};
 
 use crate::{
-    api::{Api, Fields, FixedField},
+    api::{Api, Fields, FixedField, Work},
     refusal::Refusal,
 };
 
@@ -53,7 +53,7 @@ impl<'body> Request<'body> {
         }
     }
 
-    pub fn upstream_body(&self, model_name_carries_provider: bool) -> Bytes {
+    pub fn upstream_body(&self, model_name_carries_provider: bool, work: Work) -> Bytes {
         let mut replacements = Vec::new();
         let mut fields_stated_for_the_client = String::new();
         let mut state = |name: &str, json: &str| {
@@ -66,19 +66,24 @@ impl<'body> Request<'body> {
                 self.byte_range_of(MODEL),
                 json!(model_without_provider).to_string(),
             ));
-            let stream_reports_usage_only_when_asked = self.field(STREAM) == "true";
-            if stream_reports_usage_only_when_asked {
-                let mut options: Map<String, Value> =
-                    serde_json::from_str(self.field(STREAM_OPTIONS)).unwrap_or_default();
-                options.insert("include_usage".to_owned(), true.into());
-                let options = Value::from(options).to_string();
-                match self.fields.contains_key(STREAM_OPTIONS) {
-                    true => replacements.push((self.byte_range_of(STREAM_OPTIONS), options)),
-                    false => state(STREAM_OPTIONS, &options),
-                }
+        }
+        let stream_reports_usage_only_when_asked =
+            self.api == Api::ChatCompletions && self.field(STREAM) == "true";
+        if stream_reports_usage_only_when_asked {
+            let mut options: Map<String, Value> =
+                serde_json::from_str(self.field(STREAM_OPTIONS)).unwrap_or_default();
+            options.insert("include_usage".to_owned(), true.into());
+            let options = Value::from(options).to_string();
+            match self.fields.contains_key(STREAM_OPTIONS) {
+                true => replacements.push((self.byte_range_of(STREAM_OPTIONS), options)),
+                false => state(STREAM_OPTIONS, &options),
             }
         }
-        for FixedField { name, json } in self.api.fields().stated_when_left_out {
+        let stated_when_left_out = match work {
+            Work::Answer => self.api.fields().stated_when_left_out,
+            Work::CountTokens => &[],
+        };
+        for FixedField { name, json } in stated_when_left_out {
             match self.fields.contains_key(*name) {
                 true if self.field(name) == NULL => {
                     replacements.push((self.byte_range_of(name), (*json).to_owned()));

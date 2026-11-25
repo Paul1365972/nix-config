@@ -56,6 +56,11 @@ impl Meter {
     pub fn leave_unbilled(mut self) {
         self.is_billed_by_provider = false;
     }
+
+    pub fn unbilled(mut self) -> Self {
+        self.is_billed_by_provider = false;
+        self
+    }
 }
 
 impl Drop for Meter {
