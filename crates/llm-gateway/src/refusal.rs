@@ -1,3 +1,5 @@
+use std::fmt;
+
 use axum::{
     Json,
     http::{HeaderName, HeaderValue, StatusCode, header::RETRY_AFTER},
@@ -44,6 +46,18 @@ impl Refusal {
     pub fn retry_after_seconds(mut self, seconds: u64) -> Self {
         self.retry_after_seconds = Some(seconds);
         self
+    }
+}
+
+impl fmt::Display for Refusal {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        let Self {
+            status,
+            code,
+            message,
+            ..
+        } = self;
+        write!(formatter, "{} {code}: {message}", status.as_u16())
     }
 }
 

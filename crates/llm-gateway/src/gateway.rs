@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use axum::http::{HeaderValue, StatusCode};
+use tokio::sync::watch;
 
 use crate::{
     api::Api,
@@ -26,6 +27,7 @@ pub struct Gateway {
     pub ledger: Ledger,
     pub keys: Keys,
     pub public_url: String,
+    pub responses_running: watch::Sender<usize>,
     providers: BTreeMap<String, Arc<Provider>>,
     models: BTreeMap<String, Arc<Model>>,
 }
@@ -101,6 +103,7 @@ impl Gateway {
             ledger: Ledger::load(store.clone())?,
             keys: Keys::load(store.clone(), &config.public_host)?,
             public_url: format!("https://{}", config.public_host),
+            responses_running: watch::Sender::new(0),
             store,
             providers,
             models,

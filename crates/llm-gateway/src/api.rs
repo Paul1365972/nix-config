@@ -19,7 +19,7 @@ pub enum Api {
 pub struct Fields {
     pub passed_as_given: &'static [&'static str],
     pub passed_only_as: &'static [FixedField],
-    pub passed_only_stated_as: &'static [FixedField],
+    pub stated_when_left_out: &'static [FixedField],
     pub conversation: &'static str,
 }
 
@@ -60,7 +60,7 @@ const CHAT_COMPLETIONS_FIELDS: Fields = Fields {
         "prompt_cache_options",
     ],
     passed_only_as: &[DEFAULT_TIER, NOTHING_STORED],
-    passed_only_stated_as: &[],
+    stated_when_left_out: &[],
     conversation: "messages",
 };
 
@@ -97,7 +97,7 @@ const MESSAGES_FIELDS: Fields = Fields {
             json: "\"standard\"",
         },
     ],
-    passed_only_stated_as: &[],
+    stated_when_left_out: &[],
     conversation: "messages",
 };
 
@@ -130,12 +130,13 @@ const RESPONSES_FIELDS: Fields = Fields {
     ],
     passed_only_as: &[
         DEFAULT_TIER,
+        NOTHING_STORED,
         FixedField {
             name: "background",
             json: "false",
         },
     ],
-    passed_only_stated_as: &[NOTHING_STORED],
+    stated_when_left_out: &[NOTHING_STORED],
     conversation: "input",
 };
 

@@ -5,13 +5,16 @@ It keeps the providers' keys on the server and gives each project its own key wi
 
 ## Use
 
-A request reaches its provider byte for byte, but only when the gateway knows all of it: every top-level field, every tool's type, the query and the beta flags.
-Anything else is refused by name, so nothing runs at a provider that the gateway cannot charge.
+A request reaches its provider as it was sent, but only when the gateway knows all of it: every top-level field, every tool's type, the query and the beta flags.
+Anything else is refused by name and logged with the key's name, so nothing runs at a provider that the gateway cannot charge.
 [api.rs](src/api.rs) lists what each API passes on.
-The conversation itself, and what is inside a known field, pass on unread.
+The conversation itself, and what is inside a known field, pass on unread, except that tools declared inside the conversation are held to the same list.
+
+The gateway keeps nothing at a provider and reaches nothing kept there.
+It refuses a request that asks to be stored, continues a stored response, or refers to a stored file or item, so a key can spend its limit and do nothing else.
 
 - `POST /{provider}/v1/messages` is Anthropic's Messages API.
-- `POST /{provider}/v1/responses` is OpenAI's Responses API. A request must state `store` as false, for the gateway keeps nothing at a provider, and so cannot continue a stored response.
+- `POST /{provider}/v1/responses` is OpenAI's Responses API. The gateway states `store` as false where a request leaves it out, the one thing it adds to a request of this API.
 - `POST /v1/chat/completions` is Chat Completions for every provider that offers it, with the model named `provider/model`.
 - `GET /v1/usage` shows what the calling key has spent of its limits, and `GET /v1/models` the models Chat Completions serves.
 
@@ -52,9 +55,9 @@ The dashboard shows a key's token and its link again whenever asked, so the stor
 
 A request runs while its key has spent less than its limits, and is charged the usage its provider reports once the response ends.
 A key can so pass a limit by the requests it has running when it reaches it, of which it may run only so many at once.
-A response that is cut off, because its client left or its provider broke off, is charged only what its provider had reported by then; nothing is estimated.
-Anthropic reports the input when a response starts, the others report nothing until it ends.
-A client that leaves ends the request at the provider too.
+A client that leaves does not end its request: the gateway reads the provider's response to its end and charges it in full, and the request counts as running until then.
+Hanging up early is so no way to a response the key does not pay for.
+A response its provider breaks off, or one cut by the gateway stopping, is charged only what the provider had reported by then; nothing is estimated.
 
 A request that asks for a costlier service tier, speed or region is refused, so every request runs at the list price.
 Web searches a provider runs are charged per search; its other tools are refused.

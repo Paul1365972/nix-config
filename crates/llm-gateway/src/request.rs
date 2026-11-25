@@ -1,11 +1,8 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt, marker::PhantomData, ops::Range};
+use std::{borrow::Cow, collections::BTreeMap, fmt, ops::Range};
 
 use bytes::Bytes;
 use memchr::memchr;
-use serde::{
-    Deserialize,
-    de::{DeserializeSeed, Deserializer, Error, MapAccess, SeqAccess, Visitor},
-};
+use serde::de::{DeserializeSeed, Deserializer, Error, MapAccess, Visitor};
 use serde_json::{Map, Value, json, value::RawValue};
 
 use crate::{
@@ -38,7 +35,7 @@ impl<'body> Request<'body> {
         json.end().map_err(unreadable)?;
         let request = Self { body, api, fields };
         request.require_known_fields()?;
-        request.require_known_tools()?;
+        request.require_known_tools_and_nothing_stored()?;
         Ok(request)
     }
 
@@ -57,29 +54,48 @@ impl<'body> Request<'body> {
     }
 
     pub fn upstream_body(&self, model_name_carries_provider: bool) -> Bytes {
-        if !model_name_carries_provider {
-            return self.body.clone();
-        }
-        let model_name: String = serde_json::from_str(self.field(MODEL)).unwrap_or_default();
-        let model_without_provider = model_name.split_once('/').map_or("", |(_, model)| model);
-        let mut replacements = vec![(
-            self.byte_range_of(MODEL),
-            json!(model_without_provider).to_string(),
-        )];
-        let stream_reports_usage_only_when_asked = self.field(STREAM) == "true";
-        if stream_reports_usage_only_when_asked {
-            let mut options: Map<String, Value> =
-                serde_json::from_str(self.field(STREAM_OPTIONS)).unwrap_or_default();
-            options.insert("include_usage".to_owned(), true.into());
-            let options = Value::from(options).to_string();
-            replacements.push(match self.fields.contains_key(STREAM_OPTIONS) {
-                true => (self.byte_range_of(STREAM_OPTIONS), options),
-                false => {
-                    let after_opening_brace = memchr(b'{', self.body).map_or(0, |brace| brace + 1);
-                    let field = format!("{}:{options},", json!(STREAM_OPTIONS));
-                    (after_opening_brace..after_opening_brace, field)
+        let mut replacements = Vec::new();
+        let mut fields_stated_for_the_client = String::new();
+        let mut state = |name: &str, json: &str| {
+            fields_stated_for_the_client.push_str(&format!("{}:{json},", json!(name)));
+        };
+        if model_name_carries_provider {
+            let model_name: String = serde_json::from_str(self.field(MODEL)).unwrap_or_default();
+            let model_without_provider = model_name.split_once('/').map_or("", |(_, model)| model);
+            replacements.push((
+                self.byte_range_of(MODEL),
+                json!(model_without_provider).to_string(),
+            ));
+            let stream_reports_usage_only_when_asked = self.field(STREAM) == "true";
+            if stream_reports_usage_only_when_asked {
+                let mut options: Map<String, Value> =
+                    serde_json::from_str(self.field(STREAM_OPTIONS)).unwrap_or_default();
+                options.insert("include_usage".to_owned(), true.into());
+                let options = Value::from(options).to_string();
+                match self.fields.contains_key(STREAM_OPTIONS) {
+                    true => replacements.push((self.byte_range_of(STREAM_OPTIONS), options)),
+                    false => state(STREAM_OPTIONS, &options),
                 }
-            });
+            }
+        }
+        for FixedField { name, json } in self.api.fields().stated_when_left_out {
+            match self.fields.contains_key(*name) {
+                true if self.field(name) == NULL => {
+                    replacements.push((self.byte_range_of(name), (*json).to_owned()));
+                }
+                true => {}
+                false => state(name, json),
+            }
+        }
+        if !fields_stated_for_the_client.is_empty() {
+            let after_opening_brace = memchr(b'{', self.body).map_or(0, |brace| brace + 1);
+            replacements.push((
+                after_opening_brace..after_opening_brace,
+                fields_stated_for_the_client,
+            ));
+        }
+        if replacements.is_empty() {
+            return self.body.clone();
         }
         replacements.sort_by_key(|(range, _)| range.start);
 
@@ -98,55 +114,91 @@ impl<'body> Request<'body> {
         let Fields {
             passed_as_given,
             passed_only_as,
-            passed_only_stated_as,
             ..
         } = self.api.fields();
-        let value_unsupported =
-            |message: String| Err(Refusal::invalid_request("value_unsupported", message));
         for (name, value) in &self.fields {
             let given = value.get();
-            let is_named = |field: &&FixedField| field.name == name;
-            if let Some(FixedField { json, .. }) = passed_only_as.iter().find(is_named) {
-                if given != *json && given != NULL {
-                    return value_unsupported(format!(
-                        "The gateway passes on {name} only as {json}, or left out."
+            match passed_only_as.iter().find(|field| field.name == name) {
+                Some(FixedField { json, .. }) if given != *json && given != NULL => {
+                    return Err(Refusal::invalid_request(
+                        "value_unsupported",
+                        format!("The gateway passes on {name} only as {json}, or left out."),
                     ));
                 }
-            } else if passed_only_stated_as.iter().find(is_named).is_none()
-                && !passed_as_given.contains(&name.as_str())
-            {
-                return Err(Refusal::invalid_request(
-                    "field_unsupported",
-                    format!("The gateway does not pass on the field {name:?}."),
-                ));
+                Some(_) => {}
+                None if passed_as_given.contains(&name.as_str()) => {}
+                None => {
+                    return Err(Refusal::invalid_request(
+                        "field_unsupported",
+                        format!("The gateway does not pass on the field {name:?}."),
+                    ));
+                }
             }
         }
-        let is_stated_otherwise = |field: &&FixedField| self.field(field.name) != field.json;
-        match passed_only_stated_as.iter().find(is_stated_otherwise) {
-            None => Ok(()),
-            Some(FixedField { name, json }) => value_unsupported(format!(
-                "The gateway passes on {name} only as {json}, which the request must state."
-            )),
+        Ok(())
+    }
+
+    fn require_known_tools_and_nothing_stored(&self) -> Result<(), Refusal> {
+        for tool in &self.items_of(TOOLS)? {
+            self.require_known_tool(tool)?;
         }
+        for turn in &self.items_of(self.api.fields().conversation)? {
+            let refers_to_stored_item = turn["type"] == "item_reference";
+            let blocks = || items(&turn["content"]).chain(items(&turn["output"]));
+            let blocks_of_tool_results = blocks().flat_map(|block| items(&block["content"]));
+            let mut blocks = blocks().chain(blocks_of_tool_results);
+            let refers_to_stored_file = |block: &Value| {
+                let file_is_named_by = [block, &block["file"], &block["source"]];
+                file_is_named_by
+                    .iter()
+                    .any(|holder| !holder["file_id"].is_null())
+            };
+            if refers_to_stored_item || blocks.clone().any(refers_to_stored_file) {
+                return Err(Refusal::invalid_request(
+                    "reference_unsupported",
+                    "The gateway does not pass on a reference to something stored at the provider.",
+                ));
+            }
+            let tools_added_by_openai_client = items(&turn["tools"]);
+            let tools_added_by_anthropic_client = blocks
+                .by_ref()
+                .map(|block| &block["tool"]["definition"])
+                .filter(|definition| !definition.is_null());
+            for tool in tools_added_by_openai_client.chain(tools_added_by_anthropic_client) {
+                self.require_known_tool(tool)?;
+            }
+        }
+        Ok(())
     }
 
-    fn require_known_tools(&self) -> Result<(), Refusal> {
-        let declared: Vec<Tool> = self.items_of(TOOLS)?;
-        let turns: Vec<Turn> = self.items_of(self.api.fields().conversation)?;
-        declared
-            .iter()
-            .chain(turns.iter().flat_map(Turn::tools_added))
-            .try_for_each(|tool| tool.require_passed_on(self.api))
+    fn require_known_tool(&self, tool: &Value) -> Result<(), Refusal> {
+        let kind = tool["type"].as_str();
+        if !self.api.passes_tool_on(kind) {
+            let tool = match kind {
+                Some(kind) => format!("a tool of type {kind:?}"),
+                None => "a tool that names no type".to_owned(),
+            };
+            return Err(Refusal::invalid_request(
+                "tool_unsupported",
+                format!("The gateway does not pass on {tool}."),
+            ));
+        }
+        let tools_of_namespace = items(&tool["tools"]);
+        for tool in tools_of_namespace {
+            self.require_known_tool(tool)?;
+        }
+        Ok(())
     }
 
-    fn items_of<T: Deserialize<'body>>(&self, list_field: &str) -> Result<Vec<T>, Refusal> {
-        let ItemsOfList(items) = serde_json::from_str(self.field(list_field)).map_err(|_| {
-            Refusal::invalid_request(
+    fn items_of(&self, list_field: &str) -> Result<Vec<Value>, Refusal> {
+        match serde_json::from_str(self.field(list_field)) {
+            Ok(Value::Array(items)) => Ok(items),
+            Ok(Value::Null | Value::String(_)) => Ok(Vec::new()),
+            _ => Err(Refusal::invalid_request(
                 "invalid_body",
                 format!("The gateway cannot read the field {list_field:?}."),
-            )
-        })?;
-        Ok(items)
+            )),
+        }
     }
 
     fn field(&self, name: &str) -> &'body str {
@@ -158,6 +210,10 @@ impl<'body> Request<'body> {
         let start = value.as_ptr() as usize - self.body.as_ptr() as usize;
         start..start + value.len()
     }
+}
+
+fn items(list: &Value) -> impl Iterator<Item = &Value> + Clone {
+    list.as_array().into_iter().flatten()
 }
 
 struct TopLevelFields;
@@ -186,102 +242,5 @@ impl<'de> Visitor<'de> for TopLevelFields {
             }
         }
         Ok(fields)
-    }
-}
-
-#[derive(Deserialize)]
-struct Tool {
-    #[serde(rename = "type")]
-    kind: Option<String>,
-    #[serde(default, rename = "tools")]
-    tools_of_namespace: ItemsOfList<Tool>,
-}
-
-impl Tool {
-    fn require_passed_on(&self, api: Api) -> Result<(), Refusal> {
-        if !api.passes_tool_on(self.kind.as_deref()) {
-            let tool = match &self.kind {
-                Some(kind) => format!("a tool of type {kind:?}"),
-                None => "a tool that names no type".to_owned(),
-            };
-            return Err(Refusal::invalid_request(
-                "tool_unsupported",
-                format!("The gateway does not pass on {tool}."),
-            ));
-        }
-        let ItemsOfList(tools_of_namespace) = &self.tools_of_namespace;
-        tools_of_namespace
-            .iter()
-            .try_for_each(|tool| tool.require_passed_on(api))
-    }
-}
-
-#[derive(Deserialize)]
-struct Turn {
-    #[serde(default, rename = "tools")]
-    tools_added_by_openai_client: ItemsOfList<Tool>,
-    #[serde(default)]
-    content: ItemsOfList<Block>,
-}
-
-impl Turn {
-    fn tools_added(&self) -> impl Iterator<Item = &Tool> {
-        let ItemsOfList(by_openai_client) = &self.tools_added_by_openai_client;
-        let ItemsOfList(blocks) = &self.content;
-        let by_anthropic_client = blocks
-            .iter()
-            .filter_map(|block| block.tool_added_or_removed.as_ref()?.definition.as_ref());
-        by_openai_client.iter().chain(by_anthropic_client)
-    }
-}
-
-#[derive(Deserialize)]
-struct Block {
-    #[serde(rename = "tool")]
-    tool_added_or_removed: Option<ToolUpdate>,
-}
-
-#[derive(Deserialize)]
-struct ToolUpdate {
-    definition: Option<Tool>,
-}
-
-struct ItemsOfList<T>(Vec<T>);
-
-impl<T> Default for ItemsOfList<T> {
-    fn default() -> Self {
-        Self(Vec::new())
-    }
-}
-
-impl<'de, T: Deserialize<'de>> Deserialize<'de> for ItemsOfList<T> {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_any(ListOrTextOrNull(PhantomData))
-    }
-}
-
-struct ListOrTextOrNull<T>(PhantomData<T>);
-
-impl<'de, T: Deserialize<'de>> Visitor<'de> for ListOrTextOrNull<T> {
-    type Value = ItemsOfList<T>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a list, text or null")
-    }
-
-    fn visit_seq<A: SeqAccess<'de>>(self, mut list: A) -> Result<Self::Value, A::Error> {
-        let mut items = Vec::new();
-        while let Some(item) = list.next_element()? {
-            items.push(item);
-        }
-        Ok(ItemsOfList(items))
-    }
-
-    fn visit_str<E>(self, _text: &str) -> Result<Self::Value, E> {
-        Ok(ItemsOfList::default())
-    }
-
-    fn visit_unit<E>(self) -> Result<Self::Value, E> {
-        Ok(ItemsOfList::default())
     }
 }

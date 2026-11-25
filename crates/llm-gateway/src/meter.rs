@@ -4,7 +4,7 @@ use axum::{body::Body, http::header::CONTENT_TYPE};
 use bytes::Bytes;
 use futures_util::stream;
 use memchr::{memchr, memmem};
-use tokio::time::timeout;
+use tokio::{sync::mpsc, time::timeout};
 
 use crate::{
     api::Api,
@@ -21,6 +21,7 @@ const KEEPALIVE_INTERVAL: Duration =
 const KEEPALIVE_COMMENT: Bytes = Bytes::from_static(b": keepalive\n\n");
 const LINE_FEEDS_ENDING_EVENT: usize = 2;
 const BUFFER_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+const CHUNKS_WAITING_FOR_CLIENT: usize = 16;
 
 pub struct Meter {
     gateway: Arc<Gateway>,
@@ -39,6 +40,9 @@ impl Meter {
         api: Api,
         running_request: RunningRequest,
     ) -> Self {
+        gateway
+            .responses_running
+            .send_modify(|running| *running += 1);
         Self {
             gateway,
             key,
@@ -56,9 +60,16 @@ impl Meter {
 
 impl Drop for Meter {
     fn drop(&mut self) {
-        if !self.is_billed_by_provider {
-            return;
+        if self.is_billed_by_provider {
+            self.charge();
         }
+        let responses_running = &self.gateway.responses_running;
+        responses_running.send_modify(|running| *running -= 1);
+    }
+}
+
+impl Meter {
+    fn charge(&self) {
         let (key, model) = (&self.key.name, &self.model.name);
         let usage = self.usage.reported.unwrap_or_default();
         let is_unfinished = !self.usage.has_reported_last;
@@ -85,23 +96,53 @@ impl Drop for Meter {
     }
 }
 
-pub fn relay(upstream: reqwest::Response, mut meter: Meter) -> Body {
+pub fn relay(
+    upstream: reqwest::Response,
+    mut meter: Meter,
+) -> (Body, impl Future<Output = ()> + Send) {
     let media_type = upstream.headers().get(CONTENT_TYPE);
     let media_type = media_type.and_then(|media_type| media_type.to_str().ok());
     meter.usage.is_event_stream =
         media_type.is_some_and(|media_type| media_type.starts_with("text/event-stream"));
     let stream_begins_between_events = LINE_FEEDS_ENDING_EVENT;
-    let relay = Relay {
+    let mut relay = Relay {
         upstream,
         meter,
         trailing_line_feeds: stream_begins_between_events,
     };
-    Body::from_stream(stream::unfold(Some(relay), |relay| async {
-        let mut relay = relay?;
-        let chunk = relay.next_chunk_or_keepalive().await?;
-        let continues = chunk.is_ok();
-        Some((chunk, continues.then_some(relay)))
-    }))
+    let (chunks, chunks_for_client) = mpsc::channel(CHUNKS_WAITING_FOR_CLIENT);
+    let body = Body::from_stream(stream::unfold(chunks_for_client, |mut chunks| async {
+        let chunk = chunks.recv().await?;
+        Some((chunk, chunks))
+    }));
+    let reading_to_the_end_whether_the_client_stays_or_not = async move {
+        let mut is_client_reading = true;
+        loop {
+            let nothing_is_left_to_charge = relay.meter.usage.has_reported_last;
+            if !is_client_reading && nothing_is_left_to_charge {
+                break;
+            }
+            tokio::select! {
+                chunk = relay.next_chunk_or_keepalive() => match chunk {
+                    Some(Ok(chunk)) if is_client_reading => {
+                        let _ = chunks.send(Ok(chunk)).await;
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(broken_off)) => {
+                        let _ = chunks.send(Err(broken_off)).await;
+                        break;
+                    }
+                    None => break,
+                },
+                () = chunks.closed(), if is_client_reading => {
+                    is_client_reading = false;
+                    let (key, model) = (&relay.meter.key.name, &relay.meter.model.name);
+                    tracing::info!(%key, %model, "the client left; its response is read to the end and charged in full");
+                }
+            }
+        }
+    };
+    (body, reading_to_the_end_whether_the_client_stays_or_not)
 }
 
 struct UsageReader {

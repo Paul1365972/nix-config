@@ -15,13 +15,13 @@ use axum::{
 };
 use chrono::Days;
 use serde_json::{Value, json};
-use tokio::time::sleep;
+use tokio::{sync::oneshot, time::sleep};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
     api::{ANTHROPIC_BETA, Api, X_API_KEY},
     dashboard,
-    gateway::Gateway,
+    gateway::{Gateway, Provider},
     keys::Key,
     ledger::today,
     meter::{Meter, relay},
@@ -62,6 +62,7 @@ pub async fn serve(
     let dashboard_listener = bind(dashboard_listen).await?;
     tracing::info!(%listen, %dashboard_listen, "serving");
 
+    let mut responses_running = gateway.responses_running.subscribe();
     let stopping = CancellationToken::new();
     tokio::spawn({
         let stopping = stopping.clone();
@@ -77,8 +78,13 @@ pub async fn serve(
         axum::serve(dashboard_listener, dashboard::router_without_login(gateway))
             .with_graceful_shutdown(stopping.clone().cancelled_owned())
             .into_future();
+    let serving_and_reading_responses_to_their_end = async {
+        let served = tokio::try_join!(serving, serving_dashboard);
+        let _ = responses_running.wait_for(|running| *running == 0).await;
+        served
+    };
     tokio::select! {
-        served = async { tokio::try_join!(serving, serving_dashboard) } => {
+        served = serving_and_reading_responses_to_their_end => {
             served.map(drop).context("serving HTTP")
         }
         () = async { stopping.cancelled().await; sleep(DRAIN_LIMIT).await } => {
@@ -146,6 +152,19 @@ async fn forward(
     request: Request,
 ) -> Result<Response, Refusal> {
     let key = authenticate(&gateway, request.headers())?;
+    let answer = answer(gateway, key.clone(), api, route_provider, request).await;
+    answer.inspect_err(|refusal| {
+        tracing::info!(key = %key.name, ?api, %refusal, "refused a request");
+    })
+}
+
+async fn answer(
+    gateway: Arc<Gateway>,
+    key: Arc<Key>,
+    api: Api,
+    route_provider: Option<&str>,
+    request: Request,
+) -> Result<Response, Refusal> {
     let headers_passed_on = headers_passed_on(api, request.headers())?;
     let query = request.uri().query().unwrap_or_default();
     if !api.passes_query_on(query) {
@@ -184,6 +203,26 @@ async fn forward(
         .headers(headers)
         .body(upstream_body);
     let meter = Meter::start(gateway, key, model, api, running_request);
+    let (answer, answered) = oneshot::channel();
+    tokio::spawn(exchange_outliving_the_client(
+        sending, meter, provider, answer,
+    ));
+    answered.await.unwrap_or_else(|_| {
+        Err(Refusal::new(
+            StatusCode::BAD_GATEWAY,
+            "api_error",
+            "gateway_stopping",
+            "The gateway is stopping.",
+        ))
+    })
+}
+
+async fn exchange_outliving_the_client(
+    sending: reqwest::RequestBuilder,
+    meter: Meter,
+    provider: Arc<Provider>,
+    answer: oneshot::Sender<Result<Response, Refusal>>,
+) {
     let upstream = match sending.send().await {
         Ok(upstream) => upstream,
         Err(error) => {
@@ -193,12 +232,13 @@ async fn forward(
             if never_reached_provider {
                 meter.leave_unbilled();
             }
-            return Err(Refusal::new(
+            let _ = answer.send(Err(Refusal::new(
                 StatusCode::BAD_GATEWAY,
                 "api_error",
                 "provider_unreachable",
                 format!("The provider {} did not answer.", provider.name),
-            ));
+            )));
+            return;
         }
     };
 
@@ -210,12 +250,13 @@ async fn forward(
             "the provider refused the gateway's own key"
         );
         meter.leave_unbilled();
-        return Err(Refusal::new(
+        let _ = answer.send(Err(Refusal::new(
             StatusCode::BAD_GATEWAY,
             "api_error",
             "provider_refused_gateway",
             format!("The provider {} refused the gateway.", provider.name),
-        ));
+        )));
+        return;
     }
 
     let mut response = Response::new(Body::empty());
@@ -226,13 +267,16 @@ async fn forward(
         }
     }
     let is_billed_by_provider = status.is_success();
-    *response.body_mut() = if is_billed_by_provider {
-        relay(upstream, meter)
-    } else {
+    if !is_billed_by_provider {
         meter.leave_unbilled();
-        Body::new(reqwest::Body::from(upstream))
-    };
-    Ok(response)
+        *response.body_mut() = Body::new(reqwest::Body::from(upstream));
+        let _ = answer.send(Ok(response));
+        return;
+    }
+    let (body, reading_to_the_end) = relay(upstream, meter);
+    *response.body_mut() = body;
+    let _ = answer.send(Ok(response));
+    reading_to_the_end.await;
 }
 
 fn headers_passed_on(api: Api, given: &HeaderMap) -> Result<HeaderMap, Refusal> {
