@@ -1,7 +1,7 @@
 # GitHub samples
 
-The pull requests are from 2023, typed by Paul himself and unchanged.
-The two comments at the end are from 2026: agent drafts he edited and posted, shortened here.
+Pull requests from 2023 to 2025, typed by Paul himself.
+They are unchanged, except that the changelog of the bundled one is shortened.
 
 A pull request with a measured effect:
 
@@ -45,19 +45,50 @@ Hope someone else can run the benchmark to make sure this doesn't negatively aff
 (Also fixes a spelling mistake and some minor compiler warnings)
 ```
 
-A comment after a push:
+A pull request to someone else's project:
 
 ```
-Since the last push:
+I thought I would update this crate for bevy 0.10, now with stageless.
+Also updated the bytemuck and bevy_egui dependencies.
 
-- Fixed fractional rates below 0.5 never ticking.
-- Batches now end when the next world send is due, so sends land on schedule.
-- `RateSchedule` now owns its rate and backlog cap.
+All tests are passing and the examples seem to be working as well.
+
+Also noticed that currently most operations only support the primary window, maybe that's a nice todo. For now I removed the WindowId from FillKind::Window, this should probably be an Entity (with a Window component + tracking) in the future.
 ```
 
-The opening of a review:
+A pull request that bundles many changes:
 
 ```
-Nice, that's a lot simpler now!
-I built it locally and found a few things:
+I extracted all the non destructive changes from my feature branches into one "nice" PR.
+A lot of the changes are useful by themself. However this is mostly so I don't go insane rebasing stuff every few weeks, as my branches have diverged too far from the main branch by now.
+
+Changelog:
+- Added the remaining sign types
+- Allow signs to be picked/placed with NBT data
+- Add tab-complete to commonly used commands that were currently missing it
+- Prepared for addition of new Backends by implementing Backend switching
+- Modified constant_coalesce pass so that it won't coalesce constants that belong to different unconncted builds (This is one of the few changes that improve nothing for now and is mostly so that my threading doesn't break)
+- A lot of other minor stuff
+```
+
+A pull request that says what is untested:
+
+```
+Added preview releases so that I hopefully don't have to recompile everytime I need an old/working version of MCHPRS.
+Also updated the other workflows while at it.
+
+Changes:
+- Add automatic preview builds for the latest commit
+- Add automatic release builds
+- Switch out the deprecated actions
+- Extend and rename test.yml file
+  - Separate actions into multiple jobs so that they appear fail/pass separatly
+  - Add clippy linting
+- Improve Docker image tagging
+
+Clippy complains about so much that I did not activate fail on warning yet (Can recommend going through the warnings, kind of interesting and I think it caught a legitimate bug as well, will look into it later).
+I also immediately had to suppress a false positive of clippy in the noteblocks pitch LUT, as clippy thought it was a hard error.
+
+I tested everything, except for the docker workflow.
+However it should be (hopefully) fine as I mostly copied it from a different project of mine.
 ```
