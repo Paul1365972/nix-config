@@ -29,5 +29,5 @@ $contexts = @("$HOME\.claude\CLAUDE.md", "$HOME\.codex\AGENTS.md", "$HOME\.confi
 $contexts += Get-ChildItem "$HOME\.t3\userdata\providers\antigravity" -Directory -ErrorAction SilentlyContinue |
     ForEach-Object { "$($_.FullName)\AGENTS.md" }
 foreach ($file in $contexts) {
-    Link $file "$paul\context.md"
+    Link $file "$paul\AGENTS.md"
 }
