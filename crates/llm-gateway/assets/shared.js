@@ -126,17 +126,18 @@ export function modelsSummary(tallies) {
 export function modelsTable(tallies, wordsWhenEmpty) {
   if (!tallies.length) return `<p class="note">${wordsWhenEmpty}</p>`;
   const fields = ["requests", "uncached_input_tokens", "cache_read_tokens", "cache_write_tokens", "output_tokens", "web_searches"];
-  const total = Object.fromEntries([...fields, "cost_usd", "estimated_requests"].map((field) => [field, sum(tallies.map(([, tally]) => tally[field]))]));
+  const total = Object.fromEntries([...fields, "cost_usd", "unfinished_requests"].map((field) => [field, sum(tallies.map(([, tally]) => tally[field]))]));
   const shown = fields.filter((field) => field !== "web_searches" || total.web_searches);
   const wideOnly = (field) => (field === "requests" ? "" : ` class="wide-only"`);
   const cells = (tally) => shown.map((field) => `<td${wideOnly(field)}>${compact(tally[field])}</td>`).join("") + `<td>${usd(tally.cost_usd)}</td>`;
   const sorted = [...tallies].sort(([, one], [, other]) => other.cost_usd - one.cost_usd);
   const rows = sorted.map(([model, tally]) => `<tr><td>${dot(providerOf(model))}${escaped(model.split("/")[1] ?? model)}</td>${cells(tally)}</tr>`).join("");
-  const estimates = total.estimated_requests ? `<p class="note">${count(total.estimated_requests)} ${total.estimated_requests === 1
-    ? "request ended before reporting its usage and was charged an estimate." : "requests ended before reporting their usage and were charged an estimate."}</p>` : "";
+  const unfinished = total.unfinished_requests ? `<p class="note">${count(total.unfinished_requests)} ${total.unfinished_requests === 1
+    ? "request was cut off before its provider reported all of its usage, so only what was reported is counted."
+    : "requests were cut off before their provider reported all of their usage, so only what was reported is counted."}</p>` : "";
   const names = { requests: "Requests", uncached_input_tokens: "Input", cache_read_tokens: "Cache read", cache_write_tokens: "Cache write", output_tokens: "Output", web_searches: "Searches" };
   return `<div class="scroll"><table><thead><tr><th>Model</th>${shown.map((field) => `<th${wideOnly(field)}>${names[field]}</th>`).join("")}<th>Spent</th></tr></thead><tbody>${rows}</tbody>` +
-    `${tallies.length > 1 ? `<tfoot><tr><td>Total</td>${cells(total)}</tr></tfoot>` : ""}</table></div>${estimates}`;
+    `${tallies.length > 1 ? `<tfoot><tr><td>Total</td>${cells(total)}</tr></tfoot>` : ""}</table></div>${unfinished}`;
 }
 
 export function dayBars({ spentByDay, firstDay, dayCount, today, title, isWide, summary = (total) => usd(total) }) {

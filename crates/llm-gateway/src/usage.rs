@@ -1,9 +1,6 @@
-use std::{ops::Add, time::Duration};
+use std::ops::Add;
 
 use serde::Deserialize;
-
-const INPUT_TOKEN_ESTIMATE_BYTES: u64 = 4;
-const OUTPUT_ESTIMATE_TOKENS_PER_SECOND: u64 = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub enum CacheLifetime {
@@ -69,14 +66,6 @@ pub struct Usage {
 }
 
 impl Usage {
-    pub fn estimate(request_bytes: usize, duration: Duration) -> Self {
-        Self {
-            uncached_input_tokens: request_bytes as u64 / INPUT_TOKEN_ESTIMATE_BYTES,
-            output_tokens: duration.as_secs() * OUTPUT_ESTIMATE_TOKENS_PER_SECOND,
-            ..Self::default()
-        }
-    }
-
     pub fn input_tokens(&self) -> u64 {
         self.uncached_input_tokens + self.cache_read_tokens + self.cache_write_tokens.total()
     }

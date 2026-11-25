@@ -43,7 +43,8 @@ The dashboard shows a key's token and its link again whenever asked, so the stor
 
 A request runs while its key has spent less than its limits, and is charged the usage its provider reports once the response ends.
 A key can so pass a limit by the requests it has running when it reaches it, of which it may run only so many at once.
-A response that ends without its usage, because its client left or its provider broke off, is charged an estimate.
+A response that is cut off, because its client left or its provider broke off, is charged only what its provider had reported by then; nothing is estimated.
+Anthropic reports the input when a response starts, the others report nothing until it ends.
 A client that leaves ends the request at the provider too.
 
 A request that asks for a costlier service tier, speed or region is refused, so every request runs at the list price.

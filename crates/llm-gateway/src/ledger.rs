@@ -59,13 +59,13 @@ impl FromStr for Month {
 pub struct Charge {
     pub usage: Usage,
     pub cost: MicroUsd,
-    pub is_estimated: bool,
+    pub is_unfinished: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 pub struct Tally {
     requests: u64,
-    estimated_requests: u64,
+    unfinished_requests: u64,
     uncached_input_tokens: u64,
     cache_read_tokens: u64,
     cache_write_tokens: u64,
@@ -81,7 +81,7 @@ impl Tally {
     pub fn from_row(row: TallyRow) -> Self {
         let (
             requests,
-            estimated_requests,
+            unfinished_requests,
             uncached_input_tokens,
             cache_read_tokens,
             cache_write_tokens,
@@ -91,7 +91,7 @@ impl Tally {
         ) = row;
         Self {
             requests,
-            estimated_requests,
+            unfinished_requests,
             uncached_input_tokens,
             cache_read_tokens,
             cache_write_tokens,
@@ -104,7 +104,7 @@ impl Tally {
     pub fn row(&self) -> TallyRow {
         (
             self.requests,
-            self.estimated_requests,
+            self.unfinished_requests,
             self.uncached_input_tokens,
             self.cache_read_tokens,
             self.cache_write_tokens,
@@ -116,7 +116,7 @@ impl Tally {
 
     fn add(&mut self, charge: &Charge) {
         self.requests += 1;
-        self.estimated_requests += u64::from(charge.is_estimated);
+        self.unfinished_requests += u64::from(charge.is_unfinished);
         self.uncached_input_tokens += charge.usage.uncached_input_tokens;
         self.cache_read_tokens += charge.usage.cache_read_tokens;
         self.cache_write_tokens += charge.usage.cache_write_tokens.total();
@@ -129,7 +129,7 @@ impl Tally {
 impl AddAssign for Tally {
     fn add_assign(&mut self, other: Self) {
         self.requests += other.requests;
-        self.estimated_requests += other.estimated_requests;
+        self.unfinished_requests += other.unfinished_requests;
         self.uncached_input_tokens += other.uncached_input_tokens;
         self.cache_read_tokens += other.cache_read_tokens;
         self.cache_write_tokens += other.cache_write_tokens;

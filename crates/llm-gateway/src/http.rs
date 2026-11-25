@@ -88,7 +88,7 @@ pub async fn serve(
             served.map(drop).context("serving HTTP")
         }
         () = async { stopping.cancelled().await; sleep(DRAIN_LIMIT).await } => {
-            tracing::warn!("stopping with responses still running, which are charged estimates");
+            tracing::warn!("stopping with responses still running, which are charged what they had reported");
             Ok(())
         }
     }
@@ -184,13 +184,12 @@ async fn forward(
         }
     }
 
-    let request_bytes = upstream_body.len();
     let sending = gateway
         .client
         .post(url)
         .headers(headers)
         .body(upstream_body);
-    let meter = Meter::start(gateway, key, model, api, request_bytes, running_request);
+    let meter = Meter::start(gateway, key, model, api, running_request);
     let upstream = match sending.send().await {
         Ok(upstream) => upstream,
         Err(error) => {

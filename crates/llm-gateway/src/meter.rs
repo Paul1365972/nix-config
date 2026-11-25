@@ -1,8 +1,4 @@
-use std::{
-    mem,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{mem, sync::Arc, time::Duration};
 
 use axum::{body::Body, http::header::CONTENT_TYPE};
 use bytes::Bytes;
@@ -30,8 +26,6 @@ pub struct Meter {
     gateway: Arc<Gateway>,
     key: Arc<Key>,
     model: Arc<Model>,
-    request_bytes: usize,
-    sent: Instant,
     usage: UsageReader,
     is_billed_by_provider: bool,
     _running_request: RunningRequest,
@@ -43,15 +37,12 @@ impl Meter {
         key: Arc<Key>,
         model: Arc<Model>,
         api: Api,
-        request_bytes: usize,
         running_request: RunningRequest,
     ) -> Self {
         Self {
             gateway,
             key,
             model,
-            request_bytes,
-            sent: Instant::now(),
             usage: UsageReader::new(api),
             is_billed_by_provider: true,
             _running_request: running_request,
@@ -69,21 +60,10 @@ impl Drop for Meter {
             return;
         }
         let (key, model) = (&self.key.name, &self.model.name);
-        let estimate = Usage::estimate(self.request_bytes, self.sent.elapsed());
-        let (usage, is_estimated) = match self.usage.reported {
-            Some(last_usage) if self.usage.has_reported_last => (last_usage, false),
-            Some(usage_before_break) => {
-                let output_tokens = usage_before_break.output_tokens.max(estimate.output_tokens);
-                let usage = Usage {
-                    output_tokens,
-                    ..usage_before_break
-                };
-                (usage, true)
-            }
-            None => (estimate, true),
-        };
-        if is_estimated {
-            tracing::warn!(%key, %model, "a response ended without its usage and is charged an estimate");
+        let usage = self.usage.reported.unwrap_or_default();
+        let is_unfinished = !self.usage.has_reported_last;
+        if is_unfinished {
+            tracing::warn!(%key, %model, "a response ended before its last usage report and is charged what it had reported");
         }
         let cost = self.model.cost(&usage);
         tracing::info!(
@@ -99,7 +79,7 @@ impl Drop for Meter {
         let charge = Charge {
             usage,
             cost,
-            is_estimated,
+            is_unfinished,
         };
         self.gateway.ledger.record(key, model, &charge);
     }
