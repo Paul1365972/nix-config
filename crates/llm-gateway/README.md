@@ -35,6 +35,7 @@ The dashboard makes, changes, revokes, restores and deletes keys and shows what 
 A key has a limit that resets every day, week or month, or never, which makes it a cap on all the key ever spends.
 It may have tighter limits for single providers; a limit of 0 keeps it off a provider.
 Days, weeks and months turn over at midnight UTC, weeks on Monday.
+Spending is recorded under a key's name, so the name of a deleted key that has spent anything cannot be used again.
 The dashboard listens on its own port and has no login, so it must only be reachable from a trusted network; saber serves it to the tailnet.
 The dashboard shows a key's token and its link again whenever asked, so the store holds the tokens as they are.
 

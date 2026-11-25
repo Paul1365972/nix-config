@@ -227,6 +227,10 @@ impl Ledger {
         tallies_by_key
     }
 
+    pub fn has_spending_of(&self, key: &str) -> bool {
+        self.lock().contains_key(key)
+    }
+
     pub fn months(&self) -> BTreeSet<Month> {
         let days_by_key = self.lock();
         let days = days_by_key.values().flat_map(BTreeMap::keys);

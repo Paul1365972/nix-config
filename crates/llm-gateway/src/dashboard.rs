@@ -132,6 +132,16 @@ async fn create_key(
     Json(NewKey { name, settings }): Json<NewKey>,
 ) -> Result<Json<Value>, Refusal> {
     require_configured_providers(&gateway, &settings)?;
+    let is_name_of_deleted_key =
+        gateway.keys.named(&name).is_none() && gateway.ledger.has_spending_of(&name);
+    if is_name_of_deleted_key {
+        return Err(Refusal::new(
+            StatusCode::CONFLICT,
+            "invalid_request_error",
+            "name_has_spending",
+            "A deleted key of this name still has spending on record, which a new key would inherit. Pick another name.",
+        ));
+    }
     let token = block_in_place(|| gateway.keys.create(&name, settings))?;
     tracing::info!(key = name, "created a key");
     Ok(Json(json!({ "token": token })))
