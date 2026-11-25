@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -18,7 +18,8 @@ use tokio::task::block_in_place;
 use crate::{
     gateway::Gateway,
     keys::{KeyError, KeySettings},
-    ledger::{Month, Tallies},
+    ledger::{Month, TalliesByKey},
+    price::MicroUsd,
     refusal::Refusal,
 };
 
@@ -85,7 +86,7 @@ struct Overview {
     providers: Vec<String>,
     models: Vec<Arc<str>>,
     keys: Vec<KeyOverview>,
-    tallies: Tallies,
+    tallies: TalliesByKey,
 }
 
 #[derive(Serialize)]
@@ -94,6 +95,8 @@ struct KeyOverview {
     #[serde(flatten)]
     settings: KeySettings,
     running_requests: usize,
+    spent_usd: MicroUsd,
+    spent_usd_by_provider: BTreeMap<String, MicroUsd>,
 }
 
 async fn overview(
@@ -103,30 +106,25 @@ async fn overview(
     let month = query.month.map(|month| month.parse::<Month>()).transpose();
     let month = month
         .map_err(|_| Refusal::invalid_request("invalid_month", "A month reads YYYY-MM."))?
-        .unwrap_or(gateway.ledger.this_month().0);
-    let unreadable = |error: anyhow::Error| {
-        tracing::error!(%error, "the store was not read");
-        Refusal::new(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "api_error",
-            "store_unreadable",
-            "The store could not be read.",
-        )
-    };
-    let tallies = block_in_place(|| gateway.ledger.month(month)).map_err(unreadable)?;
-    let months = block_in_place(|| gateway.ledger.months()).map_err(unreadable)?;
-    let keys = gateway.keys.all().into_iter().map(|key| KeyOverview {
-        name: key.name.clone(),
-        settings: key.settings.clone(),
-        running_requests: key.running_requests(),
+        .unwrap_or_else(Month::now);
+    let keys = gateway.keys.all().into_iter().map(|key| {
+        let spent_usd_by_provider = gateway.spent_by_provider(&key);
+        KeyOverview {
+            name: key.name.clone(),
+            settings: key.settings.clone(),
+            running_requests: key.running_requests(),
+            spent_usd: spent_usd_by_provider.values().copied().sum(),
+            spent_usd_by_provider,
+        }
     });
+    let months = gateway.ledger.months();
     Ok(Json(Overview {
         month: month.to_string(),
         months: months.iter().rev().map(Month::to_string).collect(),
         providers: gateway.providers().map(str::to_owned).collect(),
         models: gateway.models().map(|model| model.name.clone()).collect(),
         keys: keys.collect(),
-        tallies,
+        tallies: gateway.ledger.month(month),
     }))
 }
 
@@ -141,7 +139,7 @@ async fn create_key(
     State(gateway): State<Arc<Gateway>>,
     Json(NewKey { name, settings }): Json<NewKey>,
 ) -> Result<Json<Value>, Refusal> {
-    require_configured_providers_and_models(&gateway, &settings)?;
+    require_configured_providers(&gateway, &settings)?;
     let token = block_in_place(|| gateway.keys.create(&name, settings))?;
     tracing::info!(key = name, "created a key");
     Ok(Json(json!({ "token": token })))
@@ -152,7 +150,7 @@ async fn update_key(
     Path(name): Path<String>,
     Json(settings): Json<KeySettings>,
 ) -> Result<StatusCode, Refusal> {
-    require_configured_providers_and_models(&gateway, &settings)?;
+    require_configured_providers(&gateway, &settings)?;
     block_in_place(|| gateway.keys.update(&name, settings))?;
     tracing::info!(key = name, "updated a key");
     Ok(StatusCode::NO_CONTENT)
@@ -167,20 +165,14 @@ async fn revoke_key(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn require_configured_providers_and_models(
-    gateway: &Gateway,
-    settings: &KeySettings,
-) -> Result<(), Refusal> {
-    let is_provider = |name: &String| gateway.providers().any(|provider| provider == name);
-    let is_model = |name: &String| gateway.models().any(|model| *model.name == **name);
-    let providers_are_configured = settings.only_providers.iter().flatten().all(is_provider);
-    let models_are_configured = settings.limit_usd_per_month_by_model.keys().all(is_model);
-    if providers_are_configured && models_are_configured {
+fn require_configured_providers(gateway: &Gateway, settings: &KeySettings) -> Result<(), Refusal> {
+    let is_configured = |name: &String| gateway.providers().any(|provider| provider == name);
+    if settings.limit_usd_by_provider.keys().all(is_configured) {
         return Ok(());
     }
     Err(Refusal::invalid_request(
-        "unknown_provider_or_model",
-        "A key can only name configured providers and models.",
+        "unknown_provider",
+        "A key can only limit configured providers.",
     ))
 }
 

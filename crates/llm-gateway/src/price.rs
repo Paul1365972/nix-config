@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::AddAssign};
+use std::{collections::BTreeMap, iter::Sum, ops::AddAssign};
 
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -20,6 +20,15 @@ impl MicroUsd {
 impl AddAssign for MicroUsd {
     fn add_assign(&mut self, other: Self) {
         self.0 = self.0.saturating_add(other.0);
+    }
+}
+
+impl Sum for MicroUsd {
+    fn sum<I: Iterator<Item = Self>>(amounts: I) -> Self {
+        amounts.fold(Self(0), |mut sum, amount| {
+            sum += amount;
+            sum
+        })
     }
 }
 

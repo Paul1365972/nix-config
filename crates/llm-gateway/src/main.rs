@@ -26,7 +26,7 @@ const RUNTIME_STOP_LIMIT: Duration = Duration::from_secs(5);
 #[derive(Parser)]
 #[command(
     version,
-    about = "One gateway in front of several model providers, with a monthly limit per key"
+    about = "One gateway in front of several model providers, with a spending limit per key"
 )]
 struct Arguments {
     #[arg(long)]

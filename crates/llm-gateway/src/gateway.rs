@@ -113,10 +113,15 @@ impl Gateway {
         self.models.values().map(|model| &**model)
     }
 
+    pub fn spent_by_provider(&self, key: &Key) -> BTreeMap<String, MicroUsd> {
+        self.ledger.spent_by_provider(&key.name, key.period_start())
+    }
+
     pub fn run_request(&self, key: &Key) -> Result<RunningRequest, Refusal> {
-        let (spent, limit) = (self.ledger.spent(&key.name), key.limit());
+        let spent = self.spent_by_provider(key).into_values().sum();
+        let (limit, period) = (key.limit(), key.settings.limit_resets.period());
         if spent >= limit {
-            return Err(spent_limit(&key.name, spent, limit, "this month"));
+            return Err(spent_limit(&key.name, spent, limit, period));
         }
         key.run_request().ok_or_else(|| {
             Refusal::new(
@@ -145,22 +150,13 @@ impl Gateway {
                 "This API serves no such model; GET /v1/models lists the configured models.",
             ));
         };
-        if !key.may_use(&model.provider.name) {
-            return Err(Refusal::new(
-                StatusCode::FORBIDDEN,
-                "permission_error",
-                "provider_not_allowed",
-                format!(
-                    "The key {} may not use the provider {}.",
-                    key.name, model.provider.name
-                ),
-            ));
-        }
-        let spent_on_model = self.ledger.spent_on(&key.name, name);
-        match key.limit_of_model(name) {
-            Some(limit) if spent_on_model >= limit => {
-                let on_model = format!("on {name} this month");
-                Err(spent_limit(&key.name, spent_on_model, limit, &on_model))
+        let provider = &model.provider.name;
+        let spent_by_provider = self.spent_by_provider(key);
+        let spent = spent_by_provider.get(provider).copied().unwrap_or_default();
+        match key.limit_of_provider(provider) {
+            Some(limit) if spent >= limit => {
+                let on_provider = format!("on {provider} {}", key.settings.limit_resets.period());
+                Err(spent_limit(&key.name, spent, limit, &on_provider))
             }
             _ => Ok(model.clone()),
         }
@@ -173,13 +169,13 @@ impl Model {
     }
 }
 
-fn spent_limit(key: &str, spent: MicroUsd, limit: MicroUsd, scope: &str) -> Refusal {
+fn spent_limit(key: &str, spent: MicroUsd, limit: MicroUsd, period: &str) -> Refusal {
     Refusal::new(
         StatusCode::TOO_MANY_REQUESTS,
         "insufficient_quota",
         "insufficient_quota",
         format!(
-            "The key {key} has spent {:.2} USD of its {:.2} USD {scope}.",
+            "The key {key} has spent {:.2} USD of its {:.2} USD {period}.",
             spent.usd(),
             limit.usd()
         ),

@@ -23,6 +23,7 @@ use crate::{
     gateway::Gateway,
     keys::Key,
     meter::{Meter, relay},
+    price::MicroUsd,
     refusal::{Refusal, X_SHOULD_RETRY},
     request::Request as RequestBody,
 };
@@ -259,10 +260,9 @@ async fn models(
     State(gateway): State<Arc<Gateway>>,
     headers: HeaderMap,
 ) -> Result<Json<Value>, Refusal> {
-    let key = authenticate(&gateway, &headers)?;
+    authenticate(&gateway, &headers)?;
     let models: Vec<Value> = gateway
         .models()
-        .filter(|model| key.may_use(&model.provider.name))
         .map(|model| {
             json!({ "id": model.name, "object": "model", "created": 0, "owned_by": model.provider.name })
         })
@@ -275,13 +275,14 @@ async fn usage(
     headers: HeaderMap,
 ) -> Result<Json<Value>, Refusal> {
     let key = authenticate(&gateway, &headers)?;
-    let (month, mut tallies) = gateway.ledger.this_month();
+    let spent_by_provider = gateway.spent_by_provider(&key);
     Ok(Json(json!({
         "key": key.name,
-        "month": month.to_string(),
-        "spent_usd": gateway.ledger.spent(&key.name),
-        "limit_usd": key.limit(),
-        "models": tallies.remove(&key.name).unwrap_or_default(),
+        "limit_usd": key.settings.limit_usd,
+        "limit_usd_by_provider": key.settings.limit_usd_by_provider,
+        "limit_resets": key.settings.limit_resets,
+        "spent_usd": spent_by_provider.values().copied().sum::<MicroUsd>(),
+        "spent_usd_by_provider": spent_by_provider,
     })))
 }
 

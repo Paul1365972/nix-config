@@ -1,12 +1,13 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
+    ops::{AddAssign, Range},
     str::FromStr,
     sync::{Arc, Mutex, MutexGuard},
 };
 
 use anyhow::{Context, Result};
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, Months, NaiveDate, Utc};
 use serde::Serialize;
 
 use crate::{
@@ -15,39 +16,43 @@ use crate::{
     usage::Usage,
 };
 
+pub fn today() -> NaiveDate {
+    Utc::now().date_naive()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Month(i32);
+pub struct Month {
+    first_day: NaiveDate,
+}
 
 impl Month {
-    pub fn from_index(index: i32) -> Self {
-        Self(index)
+    pub fn now() -> Self {
+        Self::of(today())
     }
 
-    pub fn index(self) -> i32 {
-        self.0
+    fn of(day: NaiveDate) -> Self {
+        Self {
+            first_day: day.with_day(1).expect("every month has a first day"),
+        }
     }
 
-    fn now() -> Self {
-        let today = Utc::now();
-        Self(today.year() * 12 + today.month0() as i32)
+    fn days(self) -> Range<NaiveDate> {
+        let next_month = self.first_day.checked_add_months(Months::new(1));
+        self.first_day..next_month.unwrap_or(NaiveDate::MAX)
     }
 }
 
 impl fmt::Display for Month {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let (year, month) = (self.0.div_euclid(12), self.0.rem_euclid(12) + 1);
-        write!(formatter, "{year}-{month:02}")
+        write!(formatter, "{}", self.first_day.format("%Y-%m"))
     }
 }
 
 impl FromStr for Month {
-    type Err = anyhow::Error;
+    type Err = chrono::ParseError;
 
-    fn from_str(text: &str) -> Result<Self> {
-        let (year, month) = text.split_once('-').context("a month reads YYYY-MM")?;
-        let (year, month): (i32, i32) = (year.parse()?, month.parse()?);
-        anyhow::ensure!((1..=12).contains(&month), "a month reads YYYY-MM");
-        Ok(Self(year * 12 + month - 1))
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        NaiveDate::parse_from_str(&format!("{text}-01"), "%Y-%m-%d").map(Self::of)
     }
 }
 
@@ -71,7 +76,6 @@ pub struct Tally {
 }
 
 pub type TallyRow = (u64, u64, u64, u64, u64, u64, u64, i64);
-pub type Tallies = BTreeMap<Arc<str>, BTreeMap<Arc<str>, Tally>>;
 
 impl Tally {
     pub fn from_row(row: TallyRow) -> Self {
@@ -122,86 +126,97 @@ impl Tally {
     }
 }
 
-pub struct Ledger {
-    store: Store,
-    this_month: Mutex<ThisMonth>,
+impl AddAssign for Tally {
+    fn add_assign(&mut self, other: Self) {
+        self.requests += other.requests;
+        self.estimated_requests += other.estimated_requests;
+        self.uncached_input_tokens += other.uncached_input_tokens;
+        self.cache_read_tokens += other.cache_read_tokens;
+        self.cache_write_tokens += other.cache_write_tokens;
+        self.output_tokens += other.output_tokens;
+        self.web_searches += other.web_searches;
+        self.cost += other.cost;
+    }
 }
 
-struct ThisMonth {
-    month: Month,
-    tallies: Tallies,
+type TalliesByModel = BTreeMap<Arc<str>, Tally>;
+pub type TalliesByKey = BTreeMap<Arc<str>, TalliesByModel>;
+pub type DaysByKey = BTreeMap<Arc<str>, BTreeMap<NaiveDate, TalliesByModel>>;
+
+pub struct Ledger {
+    store: Store,
+    days_by_key: Mutex<DaysByKey>,
 }
 
 impl Ledger {
     pub fn load(store: Store) -> Result<Self> {
-        let month = Month::now();
-        let tallies = store.tallies(month).context("reading the tallies")?;
+        let days_by_key = store.tallies().context("reading the tallies")?;
         Ok(Self {
             store,
-            this_month: Mutex::new(ThisMonth { month, tallies }),
+            days_by_key: Mutex::new(days_by_key),
         })
     }
 
     pub fn record(&self, key: &Arc<str>, model: &Arc<str>, charge: &Charge) {
-        let mut this_month = self.lock_this_month();
-        let month = this_month.month;
-        let key_tallies = this_month.tallies.entry(key.clone()).or_default();
-        let tally = key_tallies.entry(model.clone()).or_default();
+        let day = today();
+        let mut days_by_key = self.lock();
+        let days = days_by_key.entry(key.clone()).or_default();
+        let tally = days
+            .entry(day)
+            .or_default()
+            .entry(model.clone())
+            .or_default();
         tally.add(charge);
         // Sent under the lock, so the store gets a tally's values in the order they were reached.
         self.store.write(Write::Tally {
-            month,
+            day,
             key: key.clone(),
             model: model.clone(),
             tally: *tally,
         });
     }
 
-    pub fn spent(&self, key: &str) -> MicroUsd {
-        let this_month = self.lock_this_month();
-        let mut spent = MicroUsd(0);
-        for tally in this_month.tallies.get(key).into_iter().flatten() {
-            spent += tally.1.cost;
+    pub fn spent_by_provider(&self, key: &str, since: NaiveDate) -> BTreeMap<String, MicroUsd> {
+        let days_by_key = self.lock();
+        let days = days_by_key.get(key).into_iter();
+        let tallies = days.flat_map(|days| days.range(since..).flat_map(|(_, tallies)| tallies));
+        let mut spent = BTreeMap::<String, MicroUsd>::new();
+        for (model, tally) in tallies {
+            let provider = model
+                .split_once('/')
+                .map_or(&**model, |(provider, _)| provider);
+            match spent.get_mut(provider) {
+                Some(spent) => *spent += tally.cost,
+                None => drop(spent.insert(provider.to_owned(), tally.cost)),
+            }
         }
         spent
     }
 
-    pub fn spent_on(&self, key: &str, model: &str) -> MicroUsd {
-        let this_month = self.lock_this_month();
-        let models = this_month.tallies.get(key);
-        let tally = models.and_then(|models| models.get(model));
-        tally.map_or(MicroUsd(0), |tally| tally.cost)
-    }
-
-    pub fn this_month(&self) -> (Month, Tallies) {
-        let this_month = self.lock_this_month();
-        (this_month.month, this_month.tallies.clone())
-    }
-
-    pub fn month(&self, month: Month) -> Result<Tallies> {
-        let (this_month, tallies) = self.this_month();
-        if month == this_month {
-            return Ok(tallies);
+    pub fn month(&self, month: Month) -> TalliesByKey {
+        let days_by_key = self.lock();
+        let mut tallies_by_key = TalliesByKey::new();
+        for (key, days) in &*days_by_key {
+            let tallies = days.range(month.days()).flat_map(|(_, tallies)| tallies);
+            for (model, tally) in tallies {
+                let tallies_of_key = tallies_by_key.entry(key.clone()).or_default();
+                *tallies_of_key.entry(model.clone()).or_default() += *tally;
+            }
         }
-        self.store.tallies(month)
+        tallies_by_key
     }
 
-    pub fn months(&self) -> Result<BTreeSet<Month>> {
-        let mut months = self.store.months()?;
-        months.insert(self.lock_this_month().month);
-        Ok(months)
+    pub fn months(&self) -> BTreeSet<Month> {
+        let days_by_key = self.lock();
+        let days = days_by_key.values().flat_map(BTreeMap::keys);
+        days.map(|day| Month::of(*day))
+            .chain([Month::now()])
+            .collect()
     }
 
-    fn lock_this_month(&self) -> MutexGuard<'_, ThisMonth> {
-        let mut this_month = self
-            .this_month
+    fn lock(&self) -> MutexGuard<'_, DaysByKey> {
+        self.days_by_key
             .lock()
-            .expect("the ledger lock is never poisoned");
-        let now = Month::now();
-        if now > this_month.month {
-            this_month.month = now;
-            this_month.tallies.clear();
-        }
-        this_month
+            .expect("the ledger lock is never poisoned")
     }
 }

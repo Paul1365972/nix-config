@@ -1,7 +1,7 @@
 # llm-gateway
 
 One gateway in front of several model providers.
-It keeps the providers' keys on the server and gives each project its own key with a monthly limit in USD.
+It keeps the providers' keys on the server and gives each project its own key with a spending limit in USD.
 
 ## Use
 
@@ -10,7 +10,7 @@ Requests and responses pass through as they are, so caching, thinking, tools and
 - `POST /{provider}/v1/messages` is Anthropic's Messages API.
 - `POST /{provider}/v1/responses` is OpenAI's Responses API, without background responses.
 - `POST /v1/chat/completions` is Chat Completions for every provider that offers it, with the model named `provider/model`.
-- `GET /v1/usage` shows what the calling key has spent this month, and `GET /v1/models` the models it may use.
+- `GET /v1/usage` shows what the calling key has spent of its limits, and `GET /v1/models` the configured models.
 
 A key goes in `Authorization: Bearer` or in `x-api-key`.
 
@@ -30,14 +30,16 @@ Its own Interactions API takes another variant of `Api` in [api.rs](src/api.rs),
 
 ## Keys
 
-The dashboard makes and revokes keys and shows what each has spent, by model and month.
-A key has a monthly limit, may have tighter ones for single models, and may be bound to some of the providers.
+The dashboard makes, changes and revokes keys and shows what each has spent, by model and month.
+A key has a limit that resets every day, week or month, or never, which makes it a cap on all the key ever spends.
+It may have tighter limits for single providers; a limit of 0 keeps it off a provider.
+Days, weeks and months turn over at midnight UTC, weeks on Monday.
 The dashboard listens on its own port and has no login, so it must only be reachable from a trusted network; saber serves it to the tailnet.
 A key's token is shown once, and the gateway keeps only its hash.
 
 ## Limit
 
-A request runs while its key has spent less than its limits this month, and is charged the usage its provider reports once the response ends.
+A request runs while its key has spent less than its limits, and is charged the usage its provider reports once the response ends.
 A key can so pass a limit by the requests it has running when it reaches it, of which it may run only so many at once.
 A response that ends without its usage, because its client left or its provider broke off, is charged an estimate.
 A client that leaves ends the request at the provider too.

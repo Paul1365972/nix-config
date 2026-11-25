@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     fmt::Write as _,
     sync::{
         Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use chrono::{Datelike, NaiveDate, Weekday};
 use ring::{
     digest::{SHA256, digest},
     rand::{SecureRandom, SystemRandom},
@@ -16,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    ledger::today,
     price::MicroUsd,
     store::{Store, Write},
 };
@@ -26,21 +28,49 @@ const LIMIT_REQUESTS_AT_ONCE_MAXIMUM: usize = 1024;
 
 pub type Token = String;
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LimitResets {
+    Daily,
+    Weekly,
+    Monthly,
+    Never,
+}
+
+impl LimitResets {
+    pub fn period(self) -> &'static str {
+        match self {
+            Self::Daily => "today",
+            Self::Weekly => "this week",
+            Self::Monthly => "this month",
+            Self::Never => "in total",
+        }
+    }
+
+    fn period_start(self, today: NaiveDate) -> NaiveDate {
+        match self {
+            Self::Daily => today,
+            Self::Weekly => today.week(Weekday::Mon).first_day(),
+            Self::Monthly => today.with_day(1).expect("every month has a first day"),
+            Self::Never => NaiveDate::MIN,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeySettings {
-    pub limit_usd_per_month: f64,
+    pub limit_usd: f64,
     #[serde(default)]
-    pub limit_usd_per_month_by_model: BTreeMap<String, f64>,
+    pub limit_usd_by_provider: BTreeMap<String, f64>,
+    pub limit_resets: LimitResets,
     pub limit_requests_at_once: usize,
-    #[serde(default)]
-    pub only_providers: Option<BTreeSet<String>>,
 }
 
 impl KeySettings {
     fn check(&self) -> Result<(), KeyError> {
         let is_amount = |usd: &f64| usd.is_finite() && *usd >= 0.0;
-        let mut limits = std::iter::once(&self.limit_usd_per_month)
-            .chain(self.limit_usd_per_month_by_model.values());
+        let mut limits =
+            std::iter::once(&self.limit_usd).chain(self.limit_usd_by_provider.values());
         let is_valid = limits.all(is_amount)
             && (1..=LIMIT_REQUESTS_AT_ONCE_MAXIMUM).contains(&self.limit_requests_at_once);
         is_valid.then_some(()).ok_or(KeyError::InvalidSettings)
@@ -63,17 +93,16 @@ pub struct Key {
 
 impl Key {
     pub fn limit(&self) -> MicroUsd {
-        MicroUsd::from_usd(self.settings.limit_usd_per_month)
+        MicroUsd::from_usd(self.settings.limit_usd)
     }
 
-    pub fn limit_of_model(&self, model: &str) -> Option<MicroUsd> {
-        let limit = self.settings.limit_usd_per_month_by_model.get(model)?;
+    pub fn limit_of_provider(&self, provider: &str) -> Option<MicroUsd> {
+        let limit = self.settings.limit_usd_by_provider.get(provider)?;
         Some(MicroUsd::from_usd(*limit))
     }
 
-    pub fn may_use(&self, provider: &str) -> bool {
-        let only_providers = self.settings.only_providers.as_ref();
-        only_providers.is_none_or(|providers| providers.contains(provider))
+    pub fn period_start(&self) -> NaiveDate {
+        self.settings.limit_resets.period_start(today())
     }
 
     pub fn run_request(&self) -> Option<RunningRequest> {

@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     iter,
     path::Path,
     sync::{Arc, mpsc},
@@ -7,11 +7,12 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use chrono::{Datelike, NaiveDate};
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 
 use crate::{
     keys::StoredKey,
-    ledger::{Month, Tallies, Tally, TallyRow},
+    ledger::{DaysByKey, Tally, TallyRow},
 };
 
 const TALLIES: TableDefinition<(i32, &str, &str), TallyRow> = TableDefinition::new("tallies");
@@ -25,7 +26,7 @@ pub struct Store {
 
 pub enum Write {
     Tally {
-        month: Month,
+        day: NaiveDate,
         key: Arc<str>,
         model: Arc<str>,
         tally: Tally,
@@ -61,27 +62,19 @@ impl Store {
         Ok(Self { database, writes })
     }
 
-    pub fn tallies(&self, month: Month) -> Result<Tallies> {
+    pub fn tallies(&self) -> Result<DaysByKey> {
         let table = self.database.begin_read()?.open_table(TALLIES)?;
-        let mut tallies = Tallies::new();
-        for row in table.range((month.index(), "", "")..(month.index() + 1, "", ""))? {
-            let (name, row) = row?;
-            let (_, key, model) = name.value();
-            tallies
-                .entry(key.into())
-                .or_default()
-                .insert(model.into(), Tally::from_row(row.value()));
-        }
-        Ok(tallies)
-    }
-
-    pub fn months(&self) -> Result<BTreeSet<Month>> {
-        let table = self.database.begin_read()?.open_table(TALLIES)?;
-        let mut months = BTreeSet::new();
+        let mut days_by_key = DaysByKey::new();
         for row in table.iter()? {
-            months.insert(Month::from_index(row?.0.value().0));
+            let (name, row) = row?;
+            let (days_from_common_era, key, model) = name.value();
+            let day = NaiveDate::from_num_days_from_ce_opt(days_from_common_era)
+                .context("a tally's day is out of range")?;
+            let days = days_by_key.entry(key.into()).or_default();
+            let tallies = days.entry(day).or_default();
+            tallies.insert(model.into(), Tally::from_row(row.value()));
         }
-        Ok(months)
+        Ok(days_by_key)
     }
 
     pub fn keys(&self) -> Result<BTreeMap<String, StoredKey>> {
@@ -130,12 +123,12 @@ fn write_batch(database: &Database, batch: &[Write]) -> Result<()> {
         for write in batch {
             match write {
                 Write::Tally {
-                    month,
+                    day,
                     key,
                     model,
                     tally,
                 } => {
-                    tallies.insert((month.index(), &**key, &**model), tally.row())?;
+                    tallies.insert((day.num_days_from_ce(), &**key, &**model), tally.row())?;
                 }
                 Write::Key { name, key } => {
                     keys.insert(&**name, &*serde_json::to_vec(key)?)?;
