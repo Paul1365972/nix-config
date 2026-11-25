@@ -267,6 +267,7 @@ async fn models(
     authenticate(&gateway, &headers)?;
     let models: Vec<Value> = gateway
         .models()
+        .filter(|model| model.provider.serves(Api::ChatCompletions))
         .map(|model| {
             json!({ "id": model.name, "object": "model", "created": 0, "owned_by": model.provider.name })
         })
@@ -296,6 +297,7 @@ async fn usage(
         "today": today,
         "days": gateway.ledger.spent_by_day(Some(&key.name), last_days),
         "apis_by_provider": gateway.apis_by_provider(),
+        "models_by_provider": gateway.models_by_provider(),
     })))
 }
 

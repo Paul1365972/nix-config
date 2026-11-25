@@ -1,7 +1,8 @@
 import {
   button, copy, copyButton, dayAfter, dayBars, decode, element, escaped, lastingNotice, modelsSummary, modelsTable, morph,
-  periods, pool, providerName, request, resetWords, tiles, toast, tokenStrip, unansweredNotice, usd, whileBusy,
+  periods, pool, request, resetWords, tiles, toast, tokenStrip, unansweredNotice, usd, whileBusy,
 } from "/shared.js";
+import { actOnSetup, renderSetup } from "/setup.js";
 
 const STORED_KEYS = "llm-gateway.keys";
 const REFRESH_INTERVAL_MILLISECONDS = 30000;
@@ -66,21 +67,9 @@ const emptyPass = `<div class="slot" data-key="empty"><div><article class="pass"
   `<div class="inline-form"><input type="text" name="token" required aria-label="Token or link" placeholder="llm-… or https://…/#llm-…" autocomplete="off" spellcheck="false">` +
   button({ kind: "primary", label: "Add key", busy: "Checking" }) + `</div><p class="problem line" role="alert"></p></form></article></div></div>`;
 
-function renderFooter() {
-  const apisByProvider = Object.entries(keys.find((key) => key.usage)?.usage.apis_by_provider ?? {});
-  const names = { messages: "Messages", responses: "Responses" };
-  const ownApis = apisByProvider.flatMap(([provider, apis]) => apis.filter((api) => api in names)
-    .map((api) => [`${providerName(provider)} ${names[api]}`, `${location.origin}/${provider}/v1`, ""]));
-  const chatProviders = apisByProvider.filter(([, apis]) => apis.includes("chat_completions")).map(([provider]) => providerName(provider));
-  const chat = chatProviders.length ? [["Chat Completions", `${location.origin}/v1`, `for ${chatProviders.join(" and ")}, with models named provider/model`]] : [];
-  const endpoints = [...ownApis, ...chat].map(([name, url, words]) =>
-    `<li><b>${name}</b><code>${escaped(url)}</code>${button({ kind: "ghost small", label: "Copy", done: "Copied", attributes: `data-action="copy-text" data-text="${escaped(url)}"` })}<span>${words}</span></li>`).join("");
-  return endpoints && `<div><div class="label-row"><h3>Base URLs for a client</h3><span>The key's token is the API key</span></div><ul class="endpoints">${endpoints}</ul></div>`;
-}
-
 function render() {
   morph(element("keys"), keys.map(renderKey).join("") || emptyPass);
-  morph(element("footer"), renderFooter());
+  morph(element("setup"), renderSetup(keys));
   element("add-key").hidden = !keys.length;
   document.title = keys.length === 1 && keys[0].name ? `${keys[0].name} usage` : "Usage";
 }
@@ -136,6 +125,7 @@ document.addEventListener("click", (event) => {
   const control = event.target.closest("[data-action]");
   if (!control) return;
   const { action, id, text } = control.dataset;
+  if (actOnSetup(control, keys)) render();
   if (action === "close-dialog") control.closest("dialog").close();
   if (action === "copy-text") copy(text, control);
   if (action === "copy-token") copy(keyWith(id).token, control);

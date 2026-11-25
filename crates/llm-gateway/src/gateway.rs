@@ -118,6 +118,19 @@ impl Gateway {
             .collect()
     }
 
+    pub fn models_by_provider(&self) -> BTreeMap<&str, Vec<&str>> {
+        let mut models_by_provider = BTreeMap::<&str, Vec<&str>>::new();
+        for model in self.models.values() {
+            let name_without_provider = model
+                .name
+                .split_once('/')
+                .map_or(&*model.name, |(_, name)| name);
+            let models = models_by_provider.entry(&model.provider.name).or_default();
+            models.push(name_without_provider);
+        }
+        models_by_provider
+    }
+
     pub fn models(&self) -> impl Iterator<Item = &Model> {
         self.models.values().map(|model| &**model)
     }
@@ -158,7 +171,7 @@ impl Gateway {
         let model = self
             .models
             .get(name)
-            .filter(|model| model.provider.apis.contains(&api));
+            .filter(|model| model.provider.serves(api));
         let Some(model) = model else {
             return Err(Refusal::new(
                 StatusCode::NOT_FOUND,
@@ -177,6 +190,12 @@ impl Gateway {
             }
             _ => Ok(model.clone()),
         }
+    }
+}
+
+impl Provider {
+    pub fn serves(&self, api: Api) -> bool {
+        self.apis.contains(&api)
     }
 }
 

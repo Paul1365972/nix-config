@@ -10,10 +10,10 @@ Requests and responses pass through as they are, so caching, thinking, tools and
 - `POST /{provider}/v1/messages` is Anthropic's Messages API.
 - `POST /{provider}/v1/responses` is OpenAI's Responses API, without background responses.
 - `POST /v1/chat/completions` is Chat Completions for every provider that offers it, with the model named `provider/model`.
-- `GET /v1/usage` shows what the calling key has spent of its limits, and `GET /v1/models` the configured models.
+- `GET /v1/usage` shows what the calling key has spent of its limits, and `GET /v1/models` the models Chat Completions serves.
 
 A key goes in `Authorization: Bearer` or in `x-api-key`.
-The gateway's own address with a key's token after a `#` opens a page that shows the key's limits and spending and keeps the token in that browser.
+The gateway's own address with a key's token after a `#` opens a page that shows the key's limits and spending, keeps the token in that browser, and walks through setting up a client.
 
 OpenCode takes the gateway as the base URL of its own providers, with the gateway key from `/connect`:
 

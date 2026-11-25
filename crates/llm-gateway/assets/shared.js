@@ -48,8 +48,14 @@ export function button({ kind = "ghost", label, done, busy, icon = "", attribute
     (busy ? `<span class="face busy" aria-hidden="true"><i class="spinner"></i>${busy}</span>` : "") + `</button>`;
 }
 export const copyButton = (label, attributes, icon = icons.copy) => button({ kind: "ghost", label, done: "Copied", icon, attributes });
+export const iconCopyButton = (label, attributes) =>
+  `<button class="icon-button" ${attributes} aria-label="${label}" title="${label}"><span class="when-idle">${icons.copy}</span><span class="when-done">${icons.check}</span></button>`;
 
 const standInForEverySecret = [...crypto.getRandomValues(new Uint8Array(96))].map((byte) => (byte % 16).toString(16)).join("");
+export function veiledToken(token) {
+  const secretStart = token.lastIndexOf("-") + 1;
+  return `${escaped(token.slice(0, secretStart))}<span class="veiled" aria-hidden="true">${standInForEverySecret.slice(0, token.length - secretStart)}</span>`;
+}
 export function tokenStrip({ id, prefix, secret, secretLength, buttons }) {
   const isShown = secret !== undefined;
   return `<div class="token-row"><div class="token"><code><span>${escaped(prefix)}</span>` +

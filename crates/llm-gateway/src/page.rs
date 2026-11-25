@@ -11,41 +11,40 @@ const ONLY_ITS_OWN_FILES_AND_ORIGIN: &str = "default-src 'none'; style-src 'self
 const JAVASCRIPT: &str = "text/javascript; charset=utf-8";
 
 pub fn usage_routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
-    routes(
-        include_str!("../assets/usage.html"),
-        "/usage.js",
-        include_str!("../assets/usage.js"),
-    )
+    let scripts = [
+        ("/usage.js", include_str!("../assets/usage.js")),
+        ("/setup.js", include_str!("../assets/setup.js")),
+    ];
+    routes(include_str!("../assets/usage.html"), scripts)
 }
 
 pub fn dashboard_routes<S: Clone + Send + Sync + 'static>() -> Router<S> {
-    routes(
-        include_str!("../assets/dashboard.html"),
-        "/dashboard.js",
-        include_str!("../assets/dashboard.js"),
-    )
+    let scripts = [("/dashboard.js", include_str!("../assets/dashboard.js"))];
+    routes(include_str!("../assets/dashboard.html"), scripts)
 }
 
 fn routes<S: Clone + Send + Sync + 'static>(
     html: &'static str,
-    script_path: &'static str,
-    script: &'static str,
+    scripts: impl IntoIterator<Item = (&'static str, &'static str)>,
 ) -> Router<S> {
-    let shared_script = include_str!("../assets/shared.js");
-    let theme_script = include_str!("../assets/theme.js");
+    let shared_scripts = [
+        ("/shared.js", include_str!("../assets/shared.js")),
+        ("/theme.js", include_str!("../assets/theme.js")),
+    ];
     let shared_styles = include_str!("../assets/shared.css");
     let icon = include_str!("../assets/icon.svg");
-    Router::new()
+    let router = Router::new()
         .route("/", get(async move || page(html)))
-        .route(script_path, get(async move || file(JAVASCRIPT, script)))
-        .route("/shared.js", get(async || file(JAVASCRIPT, shared_script)))
-        .route("/theme.js", get(async || file(JAVASCRIPT, theme_script)))
         .route(
             "/shared.css",
             get(async || file("text/css; charset=utf-8", shared_styles)),
         )
         .route("/icon.svg", get(async || file("image/svg+xml", icon)))
-        .route("/m-plus-2.woff2", get(font))
+        .route("/m-plus-2.woff2", get(font));
+    let scripts = scripts.into_iter().chain(shared_scripts);
+    scripts.fold(router, |router, (path, script)| {
+        router.route(path, get(async move || file(JAVASCRIPT, script)))
+    })
 }
 
 fn page(html: &'static str) -> impl IntoResponse {
