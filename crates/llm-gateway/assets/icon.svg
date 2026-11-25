@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>.stock { fill: #1d1b18; } @media (prefers-color-scheme: dark) { .stock { fill: #f2eee6; } }</style>
+  <path class="stock" d="M8 7h16a5 5 0 0 1 5 5v1.2a2.8 2.8 0 0 0 0 5.6V20a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5v-1.2a2.8 2.8 0 0 0 0-5.6V12a5 5 0 0 1 5-5Z"/>
+  <circle cx="11" cy="16" r="2.4" fill="#e38260"/>
+  <circle cx="16" cy="16" r="2.4" fill="#32b892"/>
+  <circle cx="21" cy="16" r="2.4" fill="#6398f7"/>
+</svg>

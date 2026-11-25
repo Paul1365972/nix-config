@@ -13,6 +13,7 @@ use axum::{
     routing::{get, post},
     serve::ListenerExt,
 };
+use chrono::Days;
 use serde_json::{Value, json};
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
@@ -22,8 +23,9 @@ use crate::{
     dashboard,
     gateway::Gateway,
     keys::Key,
+    ledger::today,
     meter::{Meter, relay},
-    page::{font, page},
+    page,
     price::MicroUsd,
     refusal::{Refusal, X_SHOULD_RETRY},
     request::Request as RequestBody,
@@ -31,6 +33,7 @@ use crate::{
 
 const REQUEST_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 const DRAIN_LIMIT: Duration = Duration::from_secs(30);
+const DAYS_SHOWN: u64 = 30;
 
 const FORWARDED_REQUEST_HEADERS: [HeaderName; 3] = [
     HeaderName::from_static("anthropic-version"),
@@ -53,11 +56,7 @@ pub async fn serve(
     dashboard_listen: SocketAddr,
 ) -> Result<()> {
     let router = Router::new()
-        .route(
-            "/",
-            get(async || page(include_str!("../assets/usage.html"))),
-        )
-        .route("/m-plus-2.woff2", get(font))
+        .merge(page::usage_routes())
         .route("/v1/chat/completions", post(complete_chat))
         .route("/{provider}/v1/messages", post(create_message))
         .route("/{provider}/v1/responses", post(create_response))
@@ -281,20 +280,24 @@ async fn usage(
     headers: HeaderMap,
 ) -> Result<Json<Value>, Refusal> {
     let key = authenticate(&gateway, &headers)?;
-    let mut spent_by_provider = gateway.spent_by_provider(&key);
-    for provider in gateway.providers() {
-        spent_by_provider.entry(provider.to_owned()).or_default();
-    }
-    let limit_resets_on = key.limit_resets_on().map(|day| day.to_string());
+    let spent_by_provider = gateway.spent_on_every_provider(&key);
+    let today = today();
+    let last_days = today - Days::new(DAYS_SHOWN - 1)..=today;
     Ok(Json(json!({
         "key": key.name,
         "limit_usd": key.settings.limit_usd,
         "limit_usd_by_provider": key.settings.limit_usd_by_provider,
         "limit_resets": key.settings.limit_resets,
-        "limit_resets_on": limit_resets_on,
+        "limit_requests_at_once": key.settings.limit_requests_at_once,
+        "period_started_on": key.period_started_on(),
+        "limit_resets_on": key.limit_resets_on(),
+        "running_requests": key.running_requests(),
         "spent_usd": spent_by_provider.values().copied().sum::<MicroUsd>(),
         "spent_usd_by_provider": spent_by_provider,
         "models": gateway.ledger.models_since(&key.name, key.period_start()),
+        "today": today,
+        "days": gateway.ledger.spent_by_day(Some(&key.name), last_days),
+        "apis_by_provider": gateway.apis_by_provider(),
     })))
 }
 

@@ -90,6 +90,8 @@ impl KeySettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredKey {
     token: Token,
+    #[serde(default)]
+    is_revoked: bool,
     #[serde(flatten)]
     settings: KeySettings,
 }
@@ -98,23 +100,31 @@ pub struct Key {
     pub name: Arc<str>,
     pub settings: KeySettings,
     pub token: Token,
+    pub is_revoked: bool,
     token_sha256: String,
     running_requests: Arc<AtomicUsize>,
 }
 
 impl Key {
-    fn new(
-        name: Arc<str>,
-        settings: KeySettings,
-        token: Token,
-        running_requests: Arc<AtomicUsize>,
-    ) -> Self {
+    fn new(name: Arc<str>, settings: KeySettings, token: Token, is_revoked: bool) -> Self {
         Self {
             name,
             settings,
             token_sha256: sha256_hex(&token),
             token,
-            running_requests,
+            is_revoked,
+            running_requests: Arc::default(),
+        }
+    }
+
+    fn changed(&self, settings: KeySettings, is_revoked: bool) -> Self {
+        Self {
+            name: self.name.clone(),
+            settings,
+            token: self.token.clone(),
+            is_revoked,
+            token_sha256: self.token_sha256.clone(),
+            running_requests: self.running_requests.clone(),
         }
     }
 
@@ -127,8 +137,17 @@ impl Key {
         Some(MicroUsd::from_usd(*limit))
     }
 
+    pub fn token_prefix_and_secret(&self) -> (&str, &str) {
+        let secret_start = self.token.rfind('-').map_or(0, |dash| dash + 1);
+        self.token.split_at(secret_start)
+    }
+
     pub fn period_start(&self) -> NaiveDate {
         self.settings.limit_resets.period_start(today())
+    }
+
+    pub fn period_started_on(&self) -> Option<NaiveDate> {
+        Some(self.period_start()).filter(|start| *start != NaiveDate::MIN)
     }
 
     pub fn limit_resets_on(&self) -> Option<NaiveDate> {
@@ -191,7 +210,12 @@ impl Keys {
         let stored = store.keys().context("reading the keys")?;
         let by_name = stored.into_iter().map(|(name, stored)| {
             let name: Arc<str> = name.into();
-            let key = Key::new(name.clone(), stored.settings, stored.token, Arc::default());
+            let key = Key::new(
+                name.clone(),
+                stored.settings,
+                stored.token,
+                stored.is_revoked,
+            );
             (name, Arc::new(key))
         });
         Ok(Self {
@@ -214,7 +238,8 @@ impl Keys {
         let token_sha256 = sha256_hex(token);
         let keys = self.read();
         let mut keys = keys.values();
-        keys.find(|key| key.token_sha256 == token_sha256).cloned()
+        keys.find(|key| !key.is_revoked && key.token_sha256 == token_sha256)
+            .cloned()
     }
 
     pub fn create(&self, name: &str, settings: KeySettings) -> Result<Token, KeyError> {
@@ -239,35 +264,27 @@ impl Keys {
         if self.read().contains_key(name) {
             return Err(KeyError::NameTaken);
         }
-        self.store_then_publish(Key::new(
-            name.into(),
-            settings,
-            token.clone(),
-            Arc::default(),
-        ));
+        self.store_then_publish(Key::new(name.into(), settings, token.clone(), false));
         Ok(token)
     }
 
     pub fn update(&self, name: &str, settings: KeySettings) -> Result<(), KeyError> {
         settings.check()?;
-        let _change = self.lock_changes();
-        let key = self.named(name).ok_or(KeyError::NotFound)?;
-        self.store_then_publish(Key::new(
-            key.name.clone(),
-            settings,
-            key.token.clone(),
-            key.running_requests.clone(),
-        ));
-        Ok(())
+        self.change(name, |key| key.changed(settings, key.is_revoked))
     }
 
     pub fn revoke(&self, name: &str) -> Result<(), KeyError> {
+        self.change(name, |key| key.changed(key.settings.clone(), true))
+    }
+
+    pub fn restore(&self, name: &str) -> Result<(), KeyError> {
+        self.change(name, |key| key.changed(key.settings.clone(), false))
+    }
+
+    fn change(&self, name: &str, changed: impl FnOnce(&Key) -> Key) -> Result<(), KeyError> {
         let _change = self.lock_changes();
-        let key = self.write().remove(name).ok_or(KeyError::NotFound)?;
-        self.store.write(Write::RevokedKey {
-            name: key.name.clone(),
-        });
-        self.store.flush();
+        let key = self.named(name).ok_or(KeyError::NotFound)?;
+        self.store_then_publish(changed(&key));
         Ok(())
     }
 
@@ -276,6 +293,7 @@ impl Keys {
             name: key.name.clone(),
             key: StoredKey {
                 token: key.token.clone(),
+                is_revoked: key.is_revoked,
                 settings: key.settings.clone(),
             },
         });

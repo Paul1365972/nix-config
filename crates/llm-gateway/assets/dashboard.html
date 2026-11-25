@@ -2,168 +2,85 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>llm-gateway</title>
+<title>Keys</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preload" href="/m-plus-2.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/shared.css">
 <style>
-  @font-face { font-family: "M PLUS 2"; src: url("/m-plus-2.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
-  :root {
-    color-scheme: light dark;
-    --page: #f4f4f7; --surface: #ffffff; --sunken: #ecebf1; --ink: #17161c; --quiet: #6d6a79; --line: #e4e3ea;
-    --rose: #e0457b; --stop: #d93a4b;
-    --provider-0: #ef86a6; --provider-1: #6fb2ee; --provider-2: #efba55; --provider-3: #7fcfa9;
-    --shadow: 0 1px 2px rgb(23 22 28 / .05), 0 8px 24px -12px rgb(23 22 28 / .12);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --page: #131217; --surface: #1c1b21; --sunken: #26252d; --ink: #edecf2; --quiet: #9b98a8; --line: #2c2b34;
-      --rose: #f0679a; --stop: #f0606e;
-      --provider-0: #e87b9d; --provider-1: #64a8e6; --provider-2: #e6b04a; --provider-3: #6fc39b;
-      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px -14px rgb(0 0 0 / .6);
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 3rem 1.25rem 5rem; background: var(--page); color: var(--ink);
-    font: 400 .9375rem/1.5 "M PLUS 2", ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums;
-    -webkit-font-smoothing: antialiased;
-  }
-  main { max-width: 54rem; margin: 0 auto; }
-  h1, h2, p { margin: 0; }
-  button, input, select { font: inherit; color: inherit; }
-  button { cursor: pointer; }
-  :focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
-
-  .bar { display: flex; height: .5rem; border-radius: 99px; background: var(--sunken); overflow: hidden; }
-  .bar i { width: var(--share); min-width: 0; transition: width .7s cubic-bezier(.2, .8, .2, 1); }
-  .bar i + i { margin-left: 2px; }
-  .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 99px; margin-right: .45rem; }
-  @media (prefers-reduced-motion: reduce) { .bar i, dialog { transition: none !important; animation: none !important; } }
-
-  header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-  h1 { font-size: .9375rem; font-weight: 600; letter-spacing: .01em; }
-  .months { display: flex; align-items: center; gap: .15rem; }
-  .months span { min-width: 8.5rem; text-align: center; font-weight: 500; }
-  .months button { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 99px; background: none; color: var(--quiet); }
-  .months button:hover:not(:disabled) { background: var(--sunken); color: var(--ink); }
-  .months button:disabled { opacity: .3; cursor: default; }
-
-  .month { margin: 3.5rem 0 3rem; }
-  .month h2 { font-size: 2.5rem; font-weight: 650; line-height: 1.1; letter-spacing: -.02em; }
-  .month h2 small { font-size: 1.125rem; font-weight: 400; letter-spacing: 0; color: var(--quiet); }
-  .mood { margin-top: .6rem; color: var(--quiet); }
-  .mood b { margin-right: .5rem; font-weight: 500; color: var(--ink); white-space: nowrap; }
-  .month .bar { height: .75rem; margin-top: 1.75rem; }
-  .split { display: flex; flex-wrap: wrap; gap: .35rem 1.5rem; margin: .8rem 0 0; padding: 0; list-style: none; color: var(--quiet); }
-  .split b { margin-left: .35rem; font-weight: 500; color: var(--ink); }
-
-  .heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: .8rem; }
-  .heading h2 { font-size: 1.0625rem; font-weight: 600; }
-  .primary, .plain, .danger { padding: .45rem .95rem; border-radius: 99px; font-weight: 500; border: 1px solid transparent; }
-  .primary { background: var(--ink); color: var(--page); }
-  .plain { background: none; border-color: var(--line); }
-  .plain:hover { background: var(--sunken); }
-  .danger { background: none; border-color: var(--line); color: var(--stop); }
-  .danger:hover { background: color-mix(in srgb, var(--stop) 10%, transparent); }
-
-  #keys { margin: 0; padding: 0; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
-  #keys > li + li { border-top: 1px solid var(--line); }
-  #keys > .empty { padding: 2.5rem 1.5rem; text-align: center; color: var(--quiet); }
-  .row { display: flex; align-items: center; }
-  .row:hover { background: color-mix(in srgb, var(--sunken) 45%, transparent); }
-  .row > .plain { width: 3.75rem; margin-right: 1.25rem; padding-inline: 0; }
-  .revoked .summary { margin-right: 5rem; }
+  .months { display: flex; align-items: center; }
+  .months span { min-width: 8.5rem; font-size: .875rem; font-weight: 550; text-align: center; }
+  .ledger-head { display: flex; align-items: center; justify-content: space-between; margin: 2rem .25rem .7rem; }
+  .ledger-head h2 { font-size: 1.0625rem; font-weight: 650; }
+  .ledger { overflow: hidden; }
+  .ledger > li + li { border-top: 1px solid var(--line); }
+  .ledger > .nothing { padding: 2.25rem 1.5rem; color: var(--soft); }
+  .row { display: grid; grid-template-columns: 1fr 5.25rem; align-items: center; padding-right: 1.25rem; transition: background-color .15s var(--ease); }
+  .row:hover { background: var(--subtle); }
+  .row > .button { justify-self: end; }
   .summary {
-    display: grid; grid-template-columns: minmax(7rem, 1.1fr) minmax(6rem, 1.6fr) minmax(9.5rem, auto) 1rem; align-items: center; gap: 1.25rem;
-    flex: 1; min-width: 0; padding: 1.05rem 1.25rem; border: 0; background: none; text-align: left;
+    display: grid; grid-template-columns: minmax(7rem, 1.1fr) minmax(6rem, 1.5fr) minmax(9rem, auto) 1rem; align-items: center; gap: 1.25rem;
+    min-width: 0; padding: 1rem 1rem 1rem 1.5rem; border: 0; background: none; text-align: left;
   }
-  .summary .name { font-weight: 600; overflow-wrap: anywhere; }
-  .summary .name small, .summary .spent .period { display: block; font-size: .8125rem; font-weight: 400; color: var(--quiet); }
-  .summary .spent { text-align: right; white-space: nowrap; font-weight: 600; }
-  .summary .spent small { font-size: inherit; font-weight: 400; color: var(--quiet); }
-  .summary .reached { color: var(--stop); }
-  .summary svg { color: var(--quiet); transition: transform .2s; }
-  .summary[aria-expanded="true"] svg { transform: rotate(90deg); }
-  .revoked .name { font-weight: 400; color: var(--quiet); }
-
-  .detail { padding: .25rem 1.25rem 1.25rem; }
-  .detail .split { margin: 0 0 1rem; }
-  .scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .875rem; }
-  th, td { padding: .5rem 1rem .5rem 0; text-align: right; white-space: nowrap; }
-  th { font-weight: 400; color: var(--quiet); border-bottom: 1px solid var(--line); }
-  th:first-child, td:first-child { text-align: left; }
-  th:last-child, td:last-child { padding-right: 0; }
-  td small { font-size: inherit; color: var(--quiet); }
-  .notes { margin-top: .9rem; font-size: .875rem; color: var(--quiet); }
-  dialog .notes { margin-top: 0; }
-  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: 1rem; }
-  .actions p { margin-right: auto; font-size: .875rem; color: var(--quiet); }
-
-  dialog { width: min(34rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px -16px rgb(0 0 0 / .35); animation: arrive .18s cubic-bezier(.2, .8, .2, 1); }
-  dialog::backdrop { background: rgb(19 18 23 / .45); backdrop-filter: blur(3px); }
-  @keyframes arrive { from { opacity: 0; transform: translateY(8px) scale(.98); } }
-  dialog form, dialog section { display: grid; gap: 1.25rem; padding: 1.5rem; }
-  dialog [hidden] { display: none; }
-  dialog h2 { font-size: 1.25rem; font-weight: 650; }
-  .field { display: grid; gap: .35rem; }
-  .field > span, fieldset legend { font-size: .875rem; font-weight: 500; }
-  .field small, fieldset small { font-size: .8125rem; color: var(--quiet); }
-  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  input[type="text"], input[type="number"], select { width: 100%; padding: .55rem .75rem; background: var(--page); border: 1px solid var(--line); border-radius: 10px; }
-  input:disabled { color: var(--quiet); background: var(--sunken); }
-  fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
-  fieldset legend { padding: 0; margin-bottom: .1rem; }
-  #provider-limits { display: grid; gap: .5rem; margin-top: .6rem; }
-  #provider-limits label { display: grid; grid-template-columns: 1fr 10rem; align-items: center; gap: .75rem; }
-  .buttons { display: flex; justify-content: flex-end; gap: .5rem; }
-  #problem { color: var(--stop); font-size: .875rem; }
-  #problem:empty { display: none; }
-  #token-value, .token code { display: block; padding: .8rem .9rem; background: var(--page); border: 1px solid var(--line); border-radius: 10px; font: inherit; overflow-wrap: anywhere; user-select: all; }
-  .token { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: 1rem; }
-  .token code { flex: 1 1 16rem; padding-block: .45rem; }
-
-  @media (max-width: 40rem) {
-    .month h2 { font-size: 2rem; }
-    .summary { grid-template-columns: 1fr auto 1rem; row-gap: .6rem; padding-right: .75rem; }
-    .row > .plain { margin-right: .75rem; }
-    .revoked .summary { margin-right: 4.5rem; }
-    .summary .bar { grid-column: 1 / -1; grid-row: 2; }
-    .pair { grid-template-columns: 1fr; }
+  .summary .name { display: grid; grid-template-columns: minmax(0, 1fr); gap: .1rem; justify-items: start; min-width: 0; }
+  .summary .name b { font-weight: 600; overflow-wrap: anywhere; }
+  .summary .name small { display: flex; align-items: center; gap: .4rem; min-height: 1.25rem; font-size: .8125rem; white-space: nowrap; color: var(--quiet); }
+  .summary .name .flag { font-weight: 600; color: var(--stop); }
+  .summary .pool { height: .5rem; margin-top: 0; }
+  .summary .spending { text-align: right; white-space: nowrap; color: var(--quiet); }
+  .summary .spending b { font-weight: 600; color: var(--ink); }
+  .summary .spending b.reached { color: var(--stop); }
+  .summary .spending small { display: block; font-size: .8125rem; }
+  .summary .chevron { color: var(--quiet); transition: rotate .22s var(--ease-out); }
+  .summary[aria-expanded="true"] .chevron { rotate: 90deg; }
+  .revoked .name b { font-weight: 450; color: var(--quiet); }
+  .disclosure { display: grid; grid-template-rows: 0fr; visibility: hidden; transition: grid-template-rows .26s var(--ease-out), visibility 0s .26s; }
+  .disclosure[data-open] { grid-template-rows: 1fr; visibility: visible; transition-delay: 0s; }
+  .disclosure > div { min-height: 0; overflow: hidden; }
+  .detail { padding: .25rem 1.5rem 1.4rem; opacity: 0; transition: opacity .18s var(--ease); }
+  .disclosure[data-open] .detail { opacity: 1; transition-delay: .06s; }
+  .detail .token-row { margin-top: 0; }
+  .detail > .label-row { margin: 1.35rem 0 .7rem; }
+  .detail-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.1rem; font-size: .8125rem; color: var(--quiet); }
+  @media (max-width: 42rem) {
+    .row { grid-template-columns: 1fr 5rem; padding-right: .9rem; }
+    .summary { grid-template-columns: minmax(0, 1fr) auto; gap: .6rem .9rem; padding: 1rem .9rem 1rem 1.1rem; }
+    .summary .pool { grid-column: 1 / -1; grid-row: 2; }
+    .summary .chevron { display: none; }
+    .detail { padding-inline: 1.1rem; }
   }
 </style>
+<script type="module" src="/dashboard.js"></script>
 <main>
-  <header>
-    <h1>llm-gateway</h1>
+  <header class="topbar">
+    <div class="brand">
+      <img src="/icon.svg" width="30" height="30" alt="">
+      <h1><b id="host"></b><span>keys</span></h1>
+    </div>
     <nav class="months" aria-label="Month">
-      <button id="earlier" aria-label="Earlier month"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg></button>
+      <button class="icon-button" id="earlier" aria-label="Earlier month"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
       <span id="month"></span>
-      <button id="later" aria-label="Later month"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg></button>
+      <button class="icon-button" id="later" aria-label="Later month"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
     </nav>
   </header>
-
-  <section class="month">
-    <h2 id="total"></h2>
-    <p class="mood" id="mood"></p>
-    <div class="bar" id="total-bar" role="img"></div>
-    <ul class="split" id="split"></ul>
-  </section>
-
-  <div class="heading">
+  <div id="month-pass"></div>
+  <div class="ledger-head">
     <h2>Keys</h2>
-    <button class="primary" id="new-key">New key</button>
+    <button class="button primary" id="new-key"><span class="face">New key</span></button>
   </div>
-  <ul id="keys"></ul>
+  <ul class="pass ledger" id="keys"></ul>
 </main>
 
-<dialog id="dialog">
-  <form id="form" method="dialog">
-    <h2 id="form-title"></h2>
+<dialog class="roomy" id="key-dialog" aria-labelledby="key-title">
+  <form class="dialog-body" id="key-form">
+    <h2 id="key-title"></h2>
     <label class="field"><span>Name</span>
       <input type="text" name="key_name" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]{0,63}" autocomplete="off" spellcheck="false">
+      <small>Letters, digits, dots, dashes and underscores. It cannot be changed later.</small>
     </label>
     <div class="pair">
       <label class="field"><span>Limit</span>
-        <input type="number" name="limit_usd" min="0" step="any" required>
-        <small>In USD, across every provider.</small>
+        <span class="dollars"><input type="number" name="limit_usd" min="0" step="any" required></span>
+        <small>All the key may spend in one period, across every provider.</small>
       </label>
       <label class="field"><span>Resets</span>
         <select name="limit_resets">
@@ -172,261 +89,46 @@
           <option value="monthly">Every month</option>
           <option value="never">Never</option>
         </select>
-        <small>At midnight UTC, weeks on Monday.</small>
+        <small>At midnight UTC. Weeks start on Monday.</small>
       </label>
     </div>
     <fieldset>
       <legend>Limits per provider</legend>
-      <small>A tighter limit for one provider, in USD. Empty leaves it to the key's limit; 0 keeps the key off the provider.</small>
-      <div id="provider-limits"></div>
+      <small>A tighter limit for one provider. Leave it empty to share the key's limit; 0 switches the provider off.</small>
+      <div class="provider-limits" id="provider-limits"></div>
     </fieldset>
     <div class="pair">
       <label class="field"><span>Requests at once</span>
-        <input type="number" name="limit_requests_at_once" min="1" max="1024" required>
-        <small>More than this are told to retry.</small>
+        <input type="number" name="limit_requests_at_once" min="1" max="1024" step="1" required>
+        <small>Further requests are told to retry.</small>
       </label>
     </div>
-    <p id="problem" role="alert"></p>
-    <div class="buttons">
-      <button type="button" class="plain" id="cancel">Cancel</button>
-      <button class="primary" id="save"></button>
+    <div class="dialog-actions">
+      <p class="problem" role="alert"></p>
+      <button type="button" class="button ghost" data-action="close-dialog"><span class="face">Cancel</span></button>
+      <button class="button primary" id="save"><span class="face"></span><span class="face busy" aria-hidden="true"><i class="spinner"></i>Saving</span></button>
     </div>
   </form>
-  <section id="created" hidden>
-    <h2>Key created</h2>
-    <p>This is the token of <b id="token-name"></b>. The key's row shows it again whenever you ask.</p>
-    <code id="token-value"></code>
-    <p class="notes">The link carries the token and opens the key's usage page, which keeps it in that browser.</p>
-    <div class="buttons">
-      <button class="plain" id="link-copy">Copy link</button>
-      <button class="plain" id="token-copy">Copy token</button>
-      <button class="primary" id="done">Done</button>
-    </div>
-  </section>
 </dialog>
 
-<script>
-const element = (id) => document.getElementById(id);
-const fields = element("form").elements;
-const escaped = (text) => String(text).replace(/[&<>"]/g, (character) => `&#${character.charCodeAt(0)};`);
-const usd = (amount) => "$" + amount.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: amount > 0 && amount < 1 ? 4 : 2 });
-const count = (number) => number.toLocaleString("en");
-const monthName = (month, options = { month: "long", year: "numeric" }) => new Date(month + "-15").toLocaleString("en", options);
-const providerOf = (model) => model.split("/")[0];
-const chevron = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>`;
-const periods = { daily: "today", weekly: "this week", monthly: "this month", never: "in total" };
-const openKeys = new Set();
-const shownTokens = new Map();
-let overview, editedKey = null, keyAboutToBeRevoked = null;
+<dialog class="roomy" id="created-dialog" aria-labelledby="created-title">
+  <div class="dialog-body">
+    <h2 id="created-title"></h2>
+    <p>Send the link to whoever will use the key. It opens the usage page with the key already added, and the token in it is all a client needs.</p>
+    <div id="created-token"></div>
+    <div class="dialog-actions">
+      <button class="button primary" data-action="close-dialog"><span class="face">Done</span></button>
+    </div>
+  </div>
+</dialog>
 
-const request = async (method, path, body) => {
-  const response = await fetch(path, { method, headers: body && { "content-type": "application/json" }, body: body && JSON.stringify(body) });
-  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error?.message ?? response.statusText);
-  return response.status === 204 ? null : response.json();
-};
-
-const tallies = (name) => Object.entries(overview.tallies[name] ?? {});
-const spentBy = (name) => tallies(name).reduce((spent, [, tally]) => spent + tally.cost_usd, 0);
-const providerColor = (provider) => `var(--provider-${Math.max(0, overview.providers.indexOf(provider)) % 4})`;
-const dot = (provider) => `<i class="dot" style="background:${providerColor(provider)}"></i>`;
-const spentByProvider = (modelTallies) => overview.providers
-  .map((provider) => [provider, modelTallies.filter(([model]) => providerOf(model) === provider).reduce((spent, [, tally]) => spent + tally.cost_usd, 0)])
-  .filter(([, spent]) => spent > 0);
-const spentByProviderThisPeriod = (key) => overview.providers
-  .map((provider) => [provider, key.spent_usd_by_provider[provider] ?? 0])
-  .filter(([, spent]) => spent > 0);
-const segments = (providerSpending, scale) => providerSpending
-  .map(([provider, spent]) => `<i style="--share:${100 * spent / scale}%;background:${providerColor(provider)}" title="${escaped(provider)} ${usd(spent)}"></i>`).join("");
-
-function mood(isThisMonth) {
-  if (!overview.keys.length) return ["(^_^)/", "No keys yet. Create one to let a client in."];
-  if (!isThisMonth) return ["(-_-)", `This is how ${monthName(overview.month, { month: "long" })} ended.`];
-  const share = (key) => key.spent_usd / (key.limit_usd || Infinity);
-  const reached = overview.keys.filter((key) => key.spent_usd >= key.limit_usd).map((key) => key.name);
-  const close = overview.keys.filter((key) => share(key) >= .8 && share(key) < 1).map((key) => key.name);
-  const listed = (names) => names.length > 2 ? `${names.length} keys` : names.join(" and ");
-  const one = (names, singular, plural) => names.length > 1 ? plural : singular;
-  if (reached.length) return ["(x_x)", `${listed(reached)} ${one(reached, "has reached its limit and is", "have reached their limits and are")} turned away.`];
-  if (close.length) return ["(>_<)", `${listed(close)} ${one(close, "is close to its limit", "are close to their limits")}.`];
-  return ["(≧▽≦)", "Every key is within its limit."];
-}
-
-function renderMonth(names) {
-  const [newest, oldest] = [overview.months[0], overview.months.at(-1)];
-  element("month").textContent = monthName(overview.month);
-  element("earlier").disabled = overview.month === oldest;
-  element("later").disabled = overview.month === newest;
-  const everyTally = names.flatMap(tallies);
-  const total = everyTally.reduce((total, [, tally]) => total + tally.cost_usd, 0);
-  const [face, words] = mood(overview.month === newest);
-  element("total").innerHTML = `${usd(total)} <small>spent in ${monthName(overview.month, { month: "long" })}</small>`;
-  element("mood").innerHTML = `<b>${face}</b>${escaped(words)}`;
-  element("total-bar").innerHTML = segments(spentByProvider(everyTally), total || 1);
-  element("total-bar").setAttribute("aria-label", `${usd(total)} spent, split by provider`);
-  element("split").innerHTML = spentByProvider(everyTally)
-    .map(([provider, spent]) => `<li>${dot(provider)}${escaped(provider)}<b>${usd(spent)}</b></li>`).join("");
-}
-
-function renderDetail(name, key, modelTallies, showsLimit) {
-  const searched = modelTallies.some(([, tally]) => tally.web_searches);
-  const rows = modelTallies.map(([model, tally]) =>
-    `<tr><td>${dot(providerOf(model))}${escaped(model.split("/")[1] ?? model)}</td>` +
-    `<td>${count(tally.requests)}</td><td>${count(tally.uncached_input_tokens)}</td><td>${count(tally.cache_read_tokens)}</td>` +
-    `<td>${count(tally.cache_write_tokens)}</td><td>${count(tally.output_tokens)}</td>${searched ? `<td>${count(tally.web_searches)}</td>` : ""}<td>${usd(tally.cost_usd)}</td></tr>`).join("");
-  const table = rows
-    ? `<div class="scroll"><table><thead><tr><th>Model</th><th>Requests</th><th>Input</th><th>Cache read</th><th>Cache write</th><th>Output</th>${searched ? "<th>Searches</th>" : ""}<th>Spent</th></tr></thead><tbody>${rows}</tbody></table></div>`
-    : `<p class="notes">No requests in ${monthName(overview.month)}.</p>`;
-  const estimated = modelTallies.reduce((estimated, [, tally]) => estimated + tally.estimated_requests, 0);
-  const estimates = estimated ? `<p class="notes">${count(estimated)} ${estimated === 1 ? "request ended without its usage and was" : "requests ended without their usage and were"} charged an estimate.</p>` : "";
-  if (!key) return `<div class="detail">${table}${estimates}</div>`;
-  const providerLimits = !showsLimit ? "" : Object.entries(key.limit_usd_by_provider).map(([provider, limit]) => {
-    const spent = key.spent_usd_by_provider[provider] ?? 0;
-    return `<li>${dot(provider)}${escaped(provider)}${limit ? `<b>${usd(spent)}</b> of ${usd(limit)} ${periods[key.limit_resets]}` : "<b>off</b>"}</li>`;
-  }).join("");
-  const actions = keyAboutToBeRevoked === name
-    ? `<p>Revoke ${escaped(name)}? Its token stops working at once.</p><button class="plain" data-keep>Keep it</button><button class="danger" data-revoke="${escaped(name)}">Revoke key</button>`
-    : `<p>Runs up to ${key.limit_requests_at_once} at once.</p>${shownTokens.has(name) ? "" : `<button class="plain" data-show-token="${escaped(name)}">Show token</button>`}<button class="danger" data-ask-revoke="${escaped(name)}">Revoke</button>`;
-  const token = shownTokens.has(name)
-    ? `<div class="token"><code>${escaped(shownTokens.get(name))}</code><button class="plain" data-copy="${escaped(`${overview.public_url}/#${shownTokens.get(name)}`)}">Copy link</button>` +
-      `<button class="plain" data-copy="${escaped(shownTokens.get(name))}">Copy token</button><button class="plain" data-hide-token="${escaped(name)}">Hide</button></div>`
-    : "";
-  return `<div class="detail">${providerLimits && `<ul class="split">${providerLimits}</ul>`}${table}${estimates}${token}<div class="actions">${actions}</div></div>`;
-}
-
-function renderKey(name, isThisMonth, largestSpending) {
-  const key = overview.keys.find((key) => key.name === name);
-  const modelTallies = tallies(name).sort(([, one], [, other]) => other.cost_usd - one.cost_usd);
-  const showsLimit = Boolean(key) && isThisMonth;
-  const spent = showsLimit ? key.spent_usd : spentBy(name);
-  const providerSpending = showsLimit ? spentByProviderThisPeriod(key) : spentByProvider(modelTallies);
-  const scale = (showsLimit ? Math.max(key.limit_usd, spent) : largestSpending) || 1;
-  const running = showsLimit && key.running_requests ? `<small>${key.running_requests} running</small>` : key ? "" : "<small>revoked</small>";
-  const amount = showsLimit
-    ? `<span class="${spent >= key.limit_usd ? "reached" : ""}">${usd(spent)}</span> <small>of ${usd(key.limit_usd)}</small><span class="period">${periods[key.limit_resets]}</span>`
-    : usd(spent);
-  const isOpen = openKeys.has(name);
-  return `<li class="${key ? "" : "revoked"}"><div class="row"><button class="summary" data-key="${escaped(name)}" aria-expanded="${isOpen}">` +
-    `<span class="name">${escaped(name)}${running}</span>` +
-    `<span class="bar" role="img" aria-label="${usd(spent)} spent${showsLimit ? ` of ${usd(key.limit_usd)} ${periods[key.limit_resets]}` : ""}">${segments(providerSpending, scale)}</span>` +
-    `<span class="spent">${amount}</span>${chevron}</button>` +
-    `${key ? `<button class="plain" data-edit="${escaped(name)}" aria-label="Edit ${escaped(name)}">Edit</button>` : ""}</div>` +
-    `${isOpen ? renderDetail(name, key, modelTallies, showsLimit) : ""}</li>`;
-}
-
-function render() {
-  const keyNames = overview.keys.map((key) => key.name).sort();
-  const revokedNames = Object.keys(overview.tallies).filter((name) => !keyNames.includes(name)).sort();
-  const names = [...keyNames, ...revokedNames];
-  const largestSpending = Math.max(0, ...names.map(spentBy));
-  renderMonth(names);
-  element("keys").innerHTML = names.map((name) => renderKey(name, overview.month === overview.months[0], largestSpending)).join("") ||
-    `<li class="empty">No keys yet. Create one, then give its token to a client.</li>`;
-}
-
-async function load(month = overview?.month ?? "") {
-  overview = await request("GET", "/api/overview" + (month ? `?month=${month}` : ""));
-  render();
-}
-
-function openForm(key) {
-  editedKey = key?.name ?? null;
-  element("form").reset();
-  element("form").hidden = false;
-  element("created").hidden = true;
-  element("problem").textContent = "";
-  element("form-title").textContent = key ? `Edit ${key.name}` : "New key";
-  element("save").textContent = key ? "Save changes" : "Create key";
-  fields.key_name.value = key?.name ?? "";
-  fields.key_name.disabled = Boolean(key);
-  fields.limit_usd.value = key?.limit_usd ?? 10;
-  fields.limit_resets.value = key?.limit_resets ?? "monthly";
-  fields.limit_requests_at_once.value = key?.limit_requests_at_once ?? 4;
-  const limits = key?.limit_usd_by_provider ?? {};
-  element("provider-limits").innerHTML = [...new Set([...overview.providers, ...Object.keys(limits)])].map((provider) =>
-    `<label><span>${dot(provider)}${escaped(provider)}</span>` +
-    `<input type="number" min="0" step="any" placeholder="No own limit" data-provider="${escaped(provider)}" value="${limits[provider] ?? ""}"></label>`).join("");
-  element("dialog").showModal();
-  (key ? fields.limit_usd : fields.key_name).focus();
-}
-
-function settingsInForm() {
-  const providerLimits = [...element("provider-limits").querySelectorAll("input")]
-    .filter((limit) => limit.value !== "")
-    .map((limit) => [limit.dataset.provider, Number(limit.value)]);
-  return {
-    limit_usd: Number(fields.limit_usd.value),
-    limit_usd_by_provider: Object.fromEntries(providerLimits),
-    limit_resets: fields.limit_resets.value,
-    limit_requests_at_once: Number(fields.limit_requests_at_once.value),
-  };
-}
-
-element("earlier").onclick = () => load(overview.months[overview.months.indexOf(overview.month) + 1]);
-element("later").onclick = () => load(overview.months[overview.months.indexOf(overview.month) - 1]);
-element("new-key").onclick = () => openForm(null);
-element("cancel").onclick = element("done").onclick = () => element("dialog").close();
-element("token-copy").onclick = async () => {
-  await navigator.clipboard.writeText(element("token-value").textContent);
-  element("token-copy").textContent = "Copied";
-};
-element("link-copy").onclick = async () => {
-  await navigator.clipboard.writeText(`${overview.public_url}/#${element("token-value").textContent}`);
-  element("link-copy").textContent = "Copied";
-};
-element("keys").onclick = async (event) => {
-  const { edit, askRevoke, revoke, keep, showToken, hideToken, copy } = event.target.dataset;
-  if (edit) return openForm(overview.keys.find((key) => key.name === edit));
-  if (showToken) {
-    const { token } = await request("GET", `/api/keys/${encodeURIComponent(showToken)}/token`);
-    shownTokens.set(showToken, token);
-    return render();
-  }
-  if (hideToken) { shownTokens.delete(hideToken); return render(); }
-  if (copy) {
-    await navigator.clipboard.writeText(copy);
-    event.target.textContent = "Copied";
-    return;
-  }
-  if (askRevoke || keep !== undefined) { keyAboutToBeRevoked = askRevoke ?? null; return render(); }
-  if (revoke) {
-    await request("DELETE", `/api/keys/${encodeURIComponent(revoke)}`);
-    keyAboutToBeRevoked = null;
-    return load();
-  }
-  const name = event.target.closest(".summary")?.dataset.key;
-  if (!name) return;
-  openKeys.has(name) ? openKeys.delete(name) : openKeys.add(name);
-  render();
-  document.querySelector(`.summary[data-key="${CSS.escape(name)}"]`)?.focus();
-};
-element("form").onsubmit = async (event) => {
-  event.preventDefault();
-  element("problem").textContent = "";
-  try {
-    const settings = settingsInForm();
-    if (editedKey) {
-      await request("PUT", `/api/keys/${encodeURIComponent(editedKey)}`, settings);
-      element("dialog").close();
-    } else {
-      const name = fields.key_name.value;
-      const { token } = await request("POST", "/api/keys", { name, ...settings });
-      element("token-name").textContent = name;
-      element("token-value").textContent = token;
-      element("token-copy").textContent = "Copy token";
-      element("link-copy").textContent = "Copy link";
-      element("form").hidden = true;
-      element("created").hidden = false;
-      element("token-copy").focus();
-    }
-    await load();
-  } catch (problem) {
-    element("problem").textContent = problem.message;
-  }
-};
-
-load("").catch((problem) => { element("mood").textContent = `The gateway did not answer: ${problem.message}`; });
-setInterval(() => {
-  const isWatchingThisMonth = overview?.month === overview?.months[0] && !document.hidden;
-  if (isWatchingThisMonth && !element("dialog").open && !keyAboutToBeRevoked) load("").catch(() => {});
-}, 10000);
-</script>
+<dialog id="revoke-dialog" aria-labelledby="revoke-title">
+  <div class="dialog-body">
+    <h2 id="revoke-title"></h2>
+    <p>Requests with its token are refused from now on. You can restore the key later, with the same token and what it has spent.</p>
+    <div class="dialog-actions">
+      <button class="button ghost" data-action="close-dialog" autofocus><span class="face">Cancel</span></button>
+      <button class="button solid danger" id="revoke"><span class="face">Revoke key</span><span class="face busy" aria-hidden="true"><i class="spinner"></i>Revoking</span></button>
+    </div>
+  </div>
+</dialog>

@@ -11,7 +11,7 @@ use crate::{
     api::Api,
     config::{Config, read_secret},
     keys::{Key, Keys, RunningRequest},
-    ledger::Ledger,
+    ledger::{Ledger, SpentByProvider},
     price::{MicroUsd, ModelPrices},
     refusal::Refusal,
     store::Store,
@@ -111,12 +111,27 @@ impl Gateway {
         self.providers.keys().map(String::as_str)
     }
 
+    pub fn apis_by_provider(&self) -> BTreeMap<&str, &BTreeSet<Api>> {
+        let providers = self.providers.values();
+        providers
+            .map(|provider| (provider.name.as_str(), &provider.apis))
+            .collect()
+    }
+
     pub fn models(&self) -> impl Iterator<Item = &Model> {
         self.models.values().map(|model| &**model)
     }
 
-    pub fn spent_by_provider(&self, key: &Key) -> BTreeMap<String, MicroUsd> {
+    pub fn spent_by_provider(&self, key: &Key) -> SpentByProvider {
         self.ledger.spent_by_provider(&key.name, key.period_start())
+    }
+
+    pub fn spent_on_every_provider(&self, key: &Key) -> SpentByProvider {
+        let mut spent = self.spent_by_provider(key);
+        for provider in self.providers() {
+            spent.entry(provider.to_owned()).or_default();
+        }
+        spent
     }
 
     pub fn run_request(&self, key: &Key) -> Result<RunningRequest, Refusal> {

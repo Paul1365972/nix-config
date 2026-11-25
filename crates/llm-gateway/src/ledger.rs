@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fmt,
-    ops::{AddAssign, Range},
+    ops::{AddAssign, Range, RangeBounds},
     str::FromStr,
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -30,15 +30,15 @@ impl Month {
         Self::of(today())
     }
 
+    pub fn days(self) -> Range<NaiveDate> {
+        let next_month = self.first_day.checked_add_months(Months::new(1));
+        self.first_day..next_month.unwrap_or(NaiveDate::MAX)
+    }
+
     fn of(day: NaiveDate) -> Self {
         Self {
             first_day: day.with_day(1).expect("every month has a first day"),
         }
-    }
-
-    fn days(self) -> Range<NaiveDate> {
-        let next_month = self.first_day.checked_add_months(Months::new(1));
-        self.first_day..next_month.unwrap_or(NaiveDate::MAX)
     }
 }
 
@@ -142,6 +142,7 @@ impl AddAssign for Tally {
 pub type TalliesByModel = BTreeMap<Arc<str>, Tally>;
 pub type TalliesByKey = BTreeMap<Arc<str>, TalliesByModel>;
 pub type DaysByKey = BTreeMap<Arc<str>, BTreeMap<NaiveDate, TalliesByModel>>;
+pub type SpentByProvider = BTreeMap<String, MicroUsd>;
 
 pub struct Ledger {
     store: Store,
@@ -176,19 +177,32 @@ impl Ledger {
         });
     }
 
-    pub fn spent_by_provider(&self, key: &str, since: NaiveDate) -> BTreeMap<String, MicroUsd> {
+    pub fn spent_by_provider(&self, key: &str, since: NaiveDate) -> SpentByProvider {
         let days_by_key = self.lock();
-        let mut spent = BTreeMap::<String, MicroUsd>::new();
+        let mut spent = SpentByProvider::new();
         for (model, tally) in tallies_since(&days_by_key, key, since) {
-            let provider = model
-                .split_once('/')
-                .map_or(&**model, |(provider, _)| provider);
-            match spent.get_mut(provider) {
-                Some(spent) => *spent += tally.cost,
-                None => drop(spent.insert(provider.to_owned(), tally.cost)),
-            }
+            add_to_provider_of(model, tally, &mut spent);
         }
         spent
+    }
+
+    pub fn spent_by_day(
+        &self,
+        only_key: Option<&str>,
+        days: impl RangeBounds<NaiveDate> + Clone,
+    ) -> BTreeMap<NaiveDate, SpentByProvider> {
+        let days_by_key = self.lock();
+        let mut spent_by_day = BTreeMap::<NaiveDate, SpentByProvider>::new();
+        let keys = days_by_key
+            .iter()
+            .filter(|(key, _)| only_key.is_none_or(|only_key| ***key == *only_key));
+        for (day, tallies) in keys.flat_map(|(_, key_days)| key_days.range(days.clone())) {
+            let spent = spent_by_day.entry(*day).or_default();
+            for (model, tally) in tallies {
+                add_to_provider_of(model, tally, spent);
+            }
+        }
+        spent_by_day
     }
 
     pub fn models_since(&self, key: &str, since: NaiveDate) -> TalliesByModel {
@@ -225,6 +239,16 @@ impl Ledger {
         self.days_by_key
             .lock()
             .expect("the ledger lock is never poisoned")
+    }
+}
+
+fn add_to_provider_of(model: &str, tally: &Tally, spent: &mut SpentByProvider) {
+    let provider = model
+        .split_once('/')
+        .map_or(model, |(provider, _)| provider);
+    match spent.get_mut(provider) {
+        Some(spent) => *spent += tally.cost,
+        None => drop(spent.insert(provider.to_owned(), tally.cost)),
     }
 }
 

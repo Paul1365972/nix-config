@@ -8,6 +8,7 @@ use axum::{
     response::Response,
     routing::{get, post, put},
 };
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::task::block_in_place;
@@ -15,23 +16,20 @@ use tokio::task::block_in_place;
 use crate::{
     gateway::Gateway,
     keys::{KeyError, KeySettings},
-    ledger::{Month, TalliesByKey},
-    page::{font, page},
+    ledger::{Month, SpentByProvider, TalliesByKey, today},
+    page,
     price::MicroUsd,
     refusal::Refusal,
 };
 
 pub fn router_without_login(gateway: Arc<Gateway>) -> Router {
     Router::new()
-        .route(
-            "/",
-            get(async || page(include_str!("../assets/dashboard.html"))),
-        )
-        .route("/m-plus-2.woff2", get(font))
+        .merge(page::dashboard_routes())
         .route("/api/overview", get(overview))
         .route("/api/keys", post(create_key))
         .route("/api/keys/{name}", put(update_key).delete(revoke_key))
         .route("/api/keys/{name}/token", get(key_token))
+        .route("/api/keys/{name}/restore", post(restore_key))
         .layer(middleware::from_fn(refuse_changes_from_other_sites))
         .with_state(gateway)
 }
@@ -68,6 +66,8 @@ struct Overview {
     models: Vec<Arc<str>>,
     keys: Vec<KeyOverview>,
     tallies: TalliesByKey,
+    today: NaiveDate,
+    days: BTreeMap<NaiveDate, SpentByProvider>,
 }
 
 #[derive(Serialize)]
@@ -76,8 +76,13 @@ struct KeyOverview {
     #[serde(flatten)]
     settings: KeySettings,
     running_requests: usize,
+    is_revoked: bool,
+    token_prefix: String,
+    token_secret_length: usize,
+    period_started_on: Option<NaiveDate>,
+    limit_resets_on: Option<NaiveDate>,
     spent_usd: MicroUsd,
-    spent_usd_by_provider: BTreeMap<String, MicroUsd>,
+    spent_usd_by_provider: SpentByProvider,
 }
 
 async fn overview(
@@ -89,11 +94,17 @@ async fn overview(
         .map_err(|_| Refusal::invalid_request("invalid_month", "A month reads YYYY-MM."))?
         .unwrap_or_else(Month::now);
     let keys = gateway.keys.all().into_iter().map(|key| {
-        let spent_usd_by_provider = gateway.spent_by_provider(&key);
+        let spent_usd_by_provider = gateway.spent_on_every_provider(&key);
+        let (token_prefix, token_secret) = key.token_prefix_and_secret();
         KeyOverview {
             name: key.name.clone(),
             settings: key.settings.clone(),
             running_requests: key.running_requests(),
+            is_revoked: key.is_revoked,
+            token_prefix: token_prefix.to_owned(),
+            token_secret_length: token_secret.len(),
+            period_started_on: key.period_started_on(),
+            limit_resets_on: key.limit_resets_on(),
             spent_usd: spent_usd_by_provider.values().copied().sum(),
             spent_usd_by_provider,
         }
@@ -107,6 +118,8 @@ async fn overview(
         models: gateway.models().map(|model| model.name.clone()).collect(),
         keys: keys.collect(),
         tallies: gateway.ledger.month(month),
+        today: today(),
+        days: gateway.ledger.spent_by_day(None, month.days()),
     }))
 }
 
@@ -144,6 +157,15 @@ async fn key_token(
 ) -> Result<Json<Value>, Refusal> {
     let key = gateway.keys.named(&name).ok_or(KeyError::NotFound)?;
     Ok(Json(json!({ "token": key.token })))
+}
+
+async fn restore_key(
+    State(gateway): State<Arc<Gateway>>,
+    Path(name): Path<String>,
+) -> Result<StatusCode, Refusal> {
+    block_in_place(|| gateway.keys.restore(&name))?;
+    tracing::info!(key = name, "restored a key");
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn revoke_key(

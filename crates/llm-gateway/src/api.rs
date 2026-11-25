@@ -1,11 +1,11 @@
 use axum::http::{HeaderName, HeaderValue, header::AUTHORIZATION};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::gateway::Provider;
 
 pub const X_API_KEY: HeaderName = HeaderName::from_static("x-api-key");
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Api {
     ChatCompletions,

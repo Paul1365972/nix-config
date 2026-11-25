@@ -8,7 +8,7 @@ publish.workspace = true
 anyhow = "1"
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
 bytes = "1"
-chrono = { version = "0.4", default-features = false, features = ["std", "now"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "now", "serde"] }
 clap = { version = "4", features = ["derive"] }
 futures-util = { version = "0.3", default-features = false }
 memchr = "2"

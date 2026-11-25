@@ -35,9 +35,6 @@ pub enum Write {
         name: Arc<str>,
         key: StoredKey,
     },
-    RevokedKey {
-        name: Arc<str>,
-    },
     Flush(mpsc::Sender<()>),
 }
 
@@ -132,9 +129,6 @@ fn write_batch(database: &Database, batch: &[Write]) -> Result<()> {
                 }
                 Write::Key { name, key } => {
                     keys.insert(&**name, &*serde_json::to_vec(key)?)?;
-                }
-                Write::RevokedKey { name } => {
-                    keys.remove(&**name)?;
                 }
                 Write::Flush(_) => {}
             }
