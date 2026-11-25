@@ -165,7 +165,7 @@ const NOTHING_STORED: FixedField = FixedField {
     json: "false",
 };
 
-const MESSAGES_BETAS: [&str; 13] = [
+const MESSAGES_BETAS: [&str; 14] = [
     "interleaved-thinking-2025-05-14",
     "thinking-binding-controls-2026-08-01",
     "thinking-display-updates-2026-08-18",
@@ -178,6 +178,7 @@ const MESSAGES_BETAS: [&str; 13] = [
     "structured-outputs-2025-11-13",
     "web-fetch-2025-09-10",
     "pdfs-2024-09-25",
+    "fine-grained-tool-streaming-2025-05-14",
     "prompt-caching-2024-07-31",
 ];
 const MESSAGES_TOOL_KINDS_BY_VERSION: [&str; 7] = [
