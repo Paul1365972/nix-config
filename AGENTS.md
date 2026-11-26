@@ -18,6 +18,6 @@ comin deploys `main` to every host, so a push is a deploy.
 
 ## Checks
 
-Run `nix fmt` and `nix flake check --all-systems` in WSL: `wsl --cd "<repo>" -- <cmd>`.
+Run `nix fmt` as you go and `nix flake check --all-systems` once before a commit/push, both in WSL: `wsl --cd "<repo>" -- <cmd>`.
 Nix sees only files Git tracks, so stage new files first.
 Nix cannot read a worktree that Windows Git created; run the checks in the main checkout.
