@@ -1,6 +1,6 @@
 # llm-gateway
 
-One gateway in front of several model providers.
+One gateway for Anthropic's Messages API, OpenAI's Responses API and Google's Gemini API.
 It keeps the providers' keys on the server and gives each project its own key with a spending limit in USD.
 
 ## Use
@@ -16,17 +16,15 @@ It refuses a request that asks to be stored, continues a stored response, or ref
 - `POST /{provider}/v1/messages` is Anthropic's Messages API.
 - `POST /{provider}/v1/responses` is OpenAI's Responses API.
   The gateway states `store` as false where a request leaves it out.
-- `POST /{provider}/v1/chat/completions` is Chat Completions, for every provider that offers it.
-- Each of the three also answers without the provider in its address, as `POST /v1/…` with the model named `provider/model`.
 - `POST /{provider}/v1/messages/count_tokens` and `POST /{provider}/v1/responses/input_tokens` count tokens, uncharged as at the provider.
 - `POST /{provider}/v1beta/models/{model}:generateContent` is Google's Gemini API.
 - `POST /{provider}/v1beta/models/{model}:streamGenerateContent?alt=sse` streams a Gemini answer.
 - `POST /{provider}/v1beta/models/{model}:countTokens` counts Gemini tokens, uncharged.
 - `GET /{provider}/v1beta/models` lists the models of a provider that serves the Gemini API.
-- `GET /{provider}/v1/models` lists a provider's models, and `GET /v1/models` those Chat Completions serves.
+- `GET /{provider}/v1/models` lists a provider's models.
 - `GET /v1/usage` shows what the calling key has spent of its limits.
 
-Gemini requests take their model from the path and require the provider in the address.
+Use the provider's own model name in the request body for Messages and Responses, or in the path for Gemini.
 The streaming route requires `alt=sse`, and the other Gemini routes accept no query.
 The gateway serves no files, batches, embeddings or stored conversations.
 A client that speaks only another provider's API needs a translator on its own side, such as a LiteLLM proxy pointed at the gateway.
@@ -87,7 +85,6 @@ Web searches on Messages and Responses are charged per search.
 
 Providers and models are declared in [llm-gateway.nix](../../modules/hosts/saber/services/llm-gateway.nix), with the providers' keys in `secrets/saber.yaml`.
 `key_prefix` starts every new key, and `client_provider_prefix` starts the names the usage page gives the gateway's providers in a client; both are short words of their own, not taken from the host.
-Each provider's `base_urls` maps the APIs it serves to their upstream base URLs.
-For Google, `generate_content` uses `https://generativelanguage.googleapis.com/v1beta` and `chat_completions` uses `https://generativelanguage.googleapis.com/v1beta/openai`.
+Each provider sets its `api` to `messages`, `responses` or `generate_content` and sets one upstream `base_url`.
 Prices come from a pinned [models.dev](https://github.com/anomalyco/models.dev); `nix flake update models-dev` takes in new ones.
 Keys and spending live in a [redb](https://github.com/cberner/redb) file under `/var/lib/llm-gateway`.

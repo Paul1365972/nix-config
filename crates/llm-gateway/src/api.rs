@@ -1,10 +1,13 @@
 use std::borrow::Cow;
 
-use axum::http::{HeaderMap, HeaderName, HeaderValue, header::AUTHORIZATION};
+use axum::http::{
+    HeaderMap, HeaderName, HeaderValue, StatusCode,
+    header::{AUTHORIZATION, InvalidHeaderValue},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{gateway::Provider, refusal::Refusal};
+use crate::refusal::Refusal;
 
 pub const X_API_KEY: HeaderName = HeaderName::from_static("x-api-key");
 pub const X_GOOG_API_KEY: HeaderName = HeaderName::from_static("x-goog-api-key");
@@ -12,10 +15,9 @@ const ANTHROPIC_BETA: HeaderName = HeaderName::from_static("anthropic-beta");
 static MESSAGES_HEADERS: [HeaderName; 2] =
     [HeaderName::from_static("anthropic-version"), ANTHROPIC_BETA];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Api {
-    ChatCompletions,
     GenerateContent,
     Messages,
     Responses,
@@ -33,10 +35,8 @@ pub enum Endpoint<'path> {
         api: Api,
         work: Work,
         path: &'static str,
-        provider: Option<&'path str>,
     },
     PathModel {
-        provider: &'path str,
         model: &'path str,
         method: GenerateContentMethod,
     },
@@ -142,7 +142,6 @@ impl GenerateContentMethod {
 pub struct Fields {
     pub passed_as_given: &'static [&'static str],
     pub passed_only_as: &'static [FixedField],
-    pub stated_when_left_out: &'static [FixedField],
     pub conversation: &'static str,
 }
 
@@ -150,52 +149,6 @@ pub struct FixedField {
     pub name: &'static str,
     pub json: &'static str,
 }
-
-const CHAT_COMPLETIONS_FIELDS: Fields = Fields {
-    passed_as_given: &[
-        "model",
-        "messages",
-        "stream",
-        "stream_options",
-        "tools",
-        "tool_choice",
-        "parallel_tool_calls",
-        "max_tokens",
-        "max_completion_tokens",
-        "reasoning_effort",
-        "verbosity",
-        "response_format",
-        "temperature",
-        "top_p",
-        "frequency_penalty",
-        "presence_penalty",
-        "logit_bias",
-        "logprobs",
-        "top_logprobs",
-        "seed",
-        "stop",
-        "n",
-        "user",
-        "safety_identifier",
-        "metadata",
-        "prompt_cache_key",
-        "prompt_cache_retention",
-        "prompt_cache_options",
-        "prediction",
-        "functions",
-        "function_call",
-    ],
-    passed_only_as: &[
-        DEFAULT_TIER,
-        NOTHING_STORED,
-        FixedField {
-            name: "modalities",
-            json: "[\"text\"]",
-        },
-    ],
-    stated_when_left_out: &[],
-    conversation: "messages",
-};
 
 const MESSAGES_FIELDS: Fields = Fields {
     passed_as_given: &[
@@ -230,7 +183,6 @@ const MESSAGES_FIELDS: Fields = Fields {
             json: "\"standard\"",
         },
     ],
-    stated_when_left_out: &[],
     conversation: "messages",
 };
 
@@ -270,7 +222,6 @@ const RESPONSES_FIELDS: Fields = Fields {
             json: "false",
         },
     ],
-    stated_when_left_out: &[NOTHING_STORED],
     conversation: "input",
 };
 
@@ -288,7 +239,6 @@ const GENERATE_CONTENT_FIELDS: Fields = Fields {
         "safety_settings",
     ],
     passed_only_as: &[],
-    stated_when_left_out: &[],
     conversation: "contents",
 };
 
@@ -301,14 +251,13 @@ const DEFAULT_TIER: FixedField = FixedField {
     name: "service_tier",
     json: "\"default\"",
 };
-const NOTHING_STORED: FixedField = FixedField {
+pub const NOTHING_STORED: FixedField = FixedField {
     name: "store",
     json: "false",
 };
 
 impl Api {
-    pub const ROUTES_WITH_MODEL_IN_BODY: [(Self, Work, &str); 5] = [
-        (Self::ChatCompletions, Work::Answer, "/chat/completions"),
+    pub const ROUTES_WITH_MODEL_IN_BODY: [(Self, Work, &str); 4] = [
         (Self::Messages, Work::Answer, "/messages"),
         (Self::Responses, Work::Answer, "/responses"),
         (Self::Messages, Work::CountTokens, "/messages/count_tokens"),
@@ -319,17 +268,37 @@ impl Api {
         ),
     ];
 
-    pub fn credentials(self, provider: &Provider) -> (HeaderName, HeaderValue) {
-        match self {
-            Self::Messages => (X_API_KEY, provider.api_key.clone()),
-            Self::GenerateContent => (X_GOOG_API_KEY, provider.api_key.clone()),
-            Self::ChatCompletions | Self::Responses => (AUTHORIZATION, provider.bearer.clone()),
-        }
+    pub fn credential(
+        self,
+        secret: String,
+    ) -> Result<(HeaderName, HeaderValue), InvalidHeaderValue> {
+        let (name, value) = match self {
+            Self::Messages => (X_API_KEY, secret),
+            Self::GenerateContent => (X_GOOG_API_KEY, secret),
+            Self::Responses => (AUTHORIZATION, format!("Bearer {secret}")),
+        };
+        let mut value = HeaderValue::try_from(value)?;
+        value.set_sensitive(true);
+        Ok((name, value))
+    }
+
+    pub fn model_not_found(self) -> Refusal {
+        let version = match self {
+            Self::GenerateContent => "v1beta",
+            Self::Messages | Self::Responses => "v1",
+        };
+        Refusal::new(
+            StatusCode::NOT_FOUND,
+            "not_found_error",
+            "model_not_found",
+            format!(
+                "This API serves no such model; GET /{{provider}}/{version}/models lists the configured models."
+            ),
+        )
     }
 
     pub fn fields(self) -> &'static Fields {
         match self {
-            Self::ChatCompletions => &CHAT_COMPLETIONS_FIELDS,
             Self::GenerateContent => &GENERATE_CONTENT_FIELDS,
             Self::Messages => &MESSAGES_FIELDS,
             Self::Responses => &RESPONSES_FIELDS,
@@ -339,7 +308,6 @@ impl Api {
     pub fn refused_tool(self, tool: &Value) -> Option<&str> {
         let kind = tool["type"].as_str();
         match self {
-            Self::ChatCompletions => None,
             Self::GenerateContent => tool.as_object()?.keys().map(String::as_str).find(|name| {
                 matches!(
                     name.replace('_', "").to_ascii_lowercase().as_str(),
@@ -367,7 +335,7 @@ impl Api {
     pub fn headers_passed_on(self, given: &HeaderMap) -> Result<HeaderMap, Refusal> {
         let names: &[HeaderName] = match self {
             Self::Messages => &MESSAGES_HEADERS,
-            Self::ChatCompletions | Self::GenerateContent | Self::Responses => &[],
+            Self::GenerateContent | Self::Responses => &[],
         };
         let mut passed_on = HeaderMap::new();
         for name in names {

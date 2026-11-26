@@ -7,7 +7,6 @@ use crate::{
     usage::{CacheLifetime, Usage},
 };
 
-pub const CHAT_COMPLETIONS_STREAM_END: &[u8] = b"[DONE]";
 const OPENAI_WEB_SEARCH: &str = "web_search_call";
 
 pub struct UsageReport {
@@ -19,15 +18,6 @@ impl UsageReport {
     pub fn read(api: Api, response_or_stream_event: &[u8]) -> Option<Self> {
         let json = response_or_stream_event;
         match api {
-            Api::ChatCompletions => {
-                let document = serde_json::from_slice::<ChatDocument>(json).ok()?;
-                let is_closing_chunk_of_openai =
-                    document.choices.is_some_and(|choices| choices.is_empty());
-                Some(Self {
-                    usage: document.usage?.into(),
-                    is_last: is_closing_chunk_of_openai,
-                })
-            }
             Api::GenerateContent => {
                 let document = serde_json::from_slice::<GenerateContentDocument>(json).ok()?;
                 let is_last = document
@@ -198,66 +188,32 @@ struct ResponsesOutputItem {
 struct ResponsesUsage {
     input_tokens: u64,
     output_tokens: u64,
-    input_tokens_details: Option<OpenAiCacheDetails>,
+    input_tokens_details: Option<ResponsesCacheDetails>,
+}
+
+#[derive(Deserialize, Default)]
+struct ResponsesCacheDetails {
+    cached_tokens: Option<u64>,
+    cache_write_tokens: Option<u64>,
+    cache_write_tokens_details: Option<ResponsesCacheWriteDetails>,
+}
+
+#[derive(Deserialize, Default)]
+struct ResponsesCacheWriteDetails {
+    ttl_12h_tokens: Option<u64>,
 }
 
 impl From<ResponsesUsage> for Usage {
     fn from(usage: ResponsesUsage) -> Self {
         let cache = usage.input_tokens_details.unwrap_or_default();
-        cache.usage(usage.input_tokens, usage.output_tokens)
-    }
-}
-
-#[derive(Deserialize)]
-struct ChatDocument {
-    usage: Option<ChatUsage>,
-    choices: Option<Vec<IgnoredAny>>,
-}
-
-#[derive(Deserialize)]
-struct ChatUsage {
-    prompt_tokens: u64,
-    completion_tokens: Option<u64>,
-    total_tokens: Option<u64>,
-    prompt_tokens_details: Option<OpenAiCacheDetails>,
-}
-
-impl From<ChatUsage> for Usage {
-    fn from(usage: ChatUsage) -> Self {
-        // Gemini counts its thinking only in the total, and bills it as output.
-        let total_tokens = usage.total_tokens.unwrap_or(0);
-        let output_tokens_by_total = total_tokens.saturating_sub(usage.prompt_tokens);
-        let output_tokens = usage
-            .completion_tokens
-            .unwrap_or(0)
-            .max(output_tokens_by_total);
-        let cache = usage.prompt_tokens_details.unwrap_or_default();
-        cache.usage(usage.prompt_tokens, output_tokens)
-    }
-}
-
-#[derive(Deserialize, Default)]
-struct OpenAiCacheDetails {
-    cached_tokens: Option<u64>,
-    cache_write_tokens: Option<u64>,
-    cache_write_tokens_details: Option<OpenAiCacheWriteDetails>,
-}
-
-#[derive(Deserialize, Default)]
-struct OpenAiCacheWriteDetails {
-    ttl_12h_tokens: Option<u64>,
-}
-
-impl OpenAiCacheDetails {
-    fn usage(self, input_tokens: u64, output_tokens: u64) -> Usage {
-        let cache_read_tokens = self.cached_tokens.unwrap_or(0);
-        let written = self.cache_write_tokens_details.unwrap_or_default();
+        let cache_read_tokens = cache.cached_tokens.unwrap_or(0);
+        let written = cache.cache_write_tokens_details.unwrap_or_default();
         let twelve_hours = written.ttl_12h_tokens.unwrap_or(0);
-        let all_lifetimes = self.cache_write_tokens.unwrap_or(0);
+        let all_lifetimes = cache.cache_write_tokens.unwrap_or(0);
         let thirty_minutes = all_lifetimes.saturating_sub(twelve_hours);
         let cached_input_tokens = cache_read_tokens + thirty_minutes + twelve_hours;
-        Usage {
-            uncached_input_tokens: input_tokens.saturating_sub(cached_input_tokens),
+        Self {
+            uncached_input_tokens: usage.input_tokens.saturating_sub(cached_input_tokens),
             cache_read_tokens,
             cache_write_tokens: [
                 (CacheLifetime::ThirtyMinutes, thirty_minutes),
@@ -265,7 +221,7 @@ impl OpenAiCacheDetails {
             ]
             .into_iter()
             .collect(),
-            output_tokens,
+            output_tokens: usage.output_tokens,
             web_searches: 0,
         }
     }

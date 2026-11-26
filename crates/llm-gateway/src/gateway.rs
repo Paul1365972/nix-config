@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
-use axum::http::{HeaderValue, StatusCode};
+use axum::http::{HeaderName, HeaderValue, StatusCode};
 use tokio::sync::watch;
 
 use crate::{
@@ -31,9 +31,9 @@ pub struct Gateway {
 
 pub struct Provider {
     pub name: String,
-    pub bearer: HeaderValue,
-    pub api_key: HeaderValue,
-    base_urls: BTreeMap<Api, String>,
+    pub api: Api,
+    pub base_url: String,
+    pub credential: (HeaderName, HeaderValue),
 }
 
 pub struct Model {
@@ -60,21 +60,15 @@ impl Gateway {
         let mut providers = BTreeMap::new();
         for (name, provider) in config.providers {
             let secret = read_secret(&provider.key_file)?;
-            let header = |value: String| {
-                let mut value = HeaderValue::try_from(value)
-                    .with_context(|| format!("the key of provider {name} is not a header value"))?;
-                value.set_sensitive(true);
-                anyhow::Ok(value)
-            };
+            let credential = provider
+                .api
+                .credential(secret)
+                .with_context(|| format!("the key of provider {name} is not a header value"))?;
             let provider = Provider {
-                bearer: header(format!("Bearer {secret}"))?,
-                api_key: header(secret)?,
-                base_urls: provider
-                    .base_urls
-                    .into_iter()
-                    .map(|(api, url)| (api, url.trim_end_matches('/').to_owned()))
-                    .collect(),
                 name: name.clone(),
+                api: provider.api,
+                base_url: provider.base_url.trim_end_matches('/').to_owned(),
+                credential,
             };
             providers.insert(name, Arc::new(provider));
         }
@@ -114,21 +108,17 @@ impl Gateway {
         self.providers.keys().map(String::as_str)
     }
 
-    pub fn provider_serves(&self, name: &str, api: Api) -> bool {
+    pub fn provider_serving(&self, name: &str, api: Api) -> Option<&Provider> {
         self.providers
             .get(name)
-            .is_some_and(|provider| provider.serves(api))
+            .filter(|provider| provider.api == api)
+            .map(Arc::as_ref)
     }
 
-    pub fn apis_by_provider(&self) -> BTreeMap<&str, Vec<Api>> {
-        let providers = self.providers.values();
-        providers
-            .map(|provider| {
-                (
-                    provider.name.as_str(),
-                    provider.base_urls.keys().copied().collect(),
-                )
-            })
+    pub fn api_by_provider(&self) -> BTreeMap<&str, Api> {
+        self.providers
+            .iter()
+            .map(|(name, provider)| (name.as_str(), provider.api))
             .collect()
     }
 
@@ -181,45 +171,31 @@ impl Gateway {
         })
     }
 
-    pub fn model_served(&self, key: &Key, api: Api, name: &str) -> Result<Arc<Model>, Refusal> {
+    pub fn model_served(
+        &self,
+        key: &Key,
+        provider: &Provider,
+        name: &str,
+    ) -> Result<Arc<Model>, Refusal> {
+        let provider_name = &provider.name;
         let model = self
             .models
-            .get(name)
-            .filter(|model| model.provider.serves(api));
-        let Some(model) = model else {
-            let message = match api {
-                Api::GenerateContent => {
-                    "This API serves no such model; GET /{provider}/v1beta/models lists the configured models."
-                }
-                _ => "This API serves no such model; GET /v1/models lists the configured models.",
-            };
-            return Err(Refusal::new(
-                StatusCode::NOT_FOUND,
-                "not_found_error",
-                "model_not_found",
-                message,
-            ));
-        };
-        let provider = &model.provider.name;
+            .get(&format!("{provider_name}/{name}"))
+            .filter(|model| model.provider.name == *provider_name)
+            .ok_or_else(|| provider.api.model_not_found())?;
         let spent_by_provider = self.spent_by_provider(key);
-        let spent = spent_by_provider.get(provider).copied().unwrap_or_default();
-        match key.limit_of_provider(provider) {
+        let spent = spent_by_provider
+            .get(provider_name)
+            .copied()
+            .unwrap_or_default();
+        match key.limit_of_provider(provider_name) {
             Some(limit) if spent >= limit => {
-                let on_provider = format!("on {provider} {}", key.settings.limit_resets.period());
+                let on_provider =
+                    format!("on {provider_name} {}", key.settings.limit_resets.period());
                 Err(spent_limit(&key.name, spent, limit, &on_provider))
             }
             _ => Ok(model.clone()),
         }
-    }
-}
-
-impl Provider {
-    pub fn serves(&self, api: Api) -> bool {
-        self.base_urls.contains_key(&api)
-    }
-
-    pub fn base_url(&self, api: Api) -> &str {
-        &self.base_urls[&api]
     }
 }
 

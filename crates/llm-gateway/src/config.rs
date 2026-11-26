@@ -28,7 +28,8 @@ pub struct Config {
 #[serde(deny_unknown_fields)]
 pub struct ProviderConfig {
     pub key_file: PathBuf,
-    pub base_urls: BTreeMap<Api, String>,
+    pub api: Api,
+    pub base_url: String,
 }
 
 impl Config {

@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
+use std::{borrow::Cow, future::IntoFuture, net::SocketAddr, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use axum::{
@@ -55,7 +55,6 @@ pub async fn serve(
     let router = Router::new()
         .merge(page::usage_routes())
         .merge(api_routes())
-        .route("/v1/models", get(models_of_chat_completions))
         .route("/{provider}/v1/models", get(models_of_provider))
         .route("/v1/usage", get(usage))
         .route("/health", get(health))
@@ -134,28 +133,11 @@ fn api_routes() -> Router<Arc<Gateway>> {
             &format!("/{{provider}}/v1{path}"),
             post(
                 move |State(gateway), Path(provider): Path<String>, request| async move {
-                    let endpoint = Endpoint::BodyModel {
-                        api,
-                        work,
-                        path,
-                        provider: Some(&provider),
-                    };
-                    forward(gateway, endpoint, request).await
+                    let endpoint = Endpoint::BodyModel { api, work, path };
+                    forward(gateway, &provider, endpoint, request).await
                 },
             ),
         );
-        if work == Work::Answer {
-            let endpoint = Endpoint::BodyModel {
-                api,
-                work,
-                path,
-                provider: None,
-            };
-            routes = routes.route(
-                &format!("/v1{path}"),
-                post(move |State(gateway), request| forward(gateway, endpoint, request)),
-            );
-        }
     }
     routes
 }
@@ -172,12 +154,8 @@ async fn generate_content(
             .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
         && let Some(method) = GenerateContentMethod::named(method)
     {
-        let endpoint = Endpoint::PathModel {
-            provider: &provider,
-            model,
-            method,
-        };
-        return forward(gateway, endpoint, request).await;
+        let endpoint = Endpoint::PathModel { model, method };
+        return forward(gateway, &provider, endpoint, request).await;
     }
     Err(no_route(request).await)
 }
@@ -197,11 +175,12 @@ async fn no_route(request: Request) -> Refusal {
 
 async fn forward(
     gateway: Arc<Gateway>,
+    provider_name: &str,
     endpoint: Endpoint<'_>,
     request: Request,
 ) -> Result<Response, Refusal> {
     let key = authenticate(&gateway, request.headers())?;
-    let answer = answer(gateway, key.clone(), endpoint, request).await;
+    let answer = answer(gateway, key.clone(), provider_name, endpoint, request).await;
     answer.inspect_err(|refusal| {
         let api = endpoint.api();
         tracing::info!(key = %key.name, ?api, %refusal, "refused a request");
@@ -211,10 +190,14 @@ async fn forward(
 async fn answer(
     gateway: Arc<Gateway>,
     key: Arc<Key>,
+    provider_name: &str,
     endpoint: Endpoint<'_>,
     request: Request,
 ) -> Result<Response, Refusal> {
     let (api, work) = (endpoint.api(), endpoint.work());
+    let provider = gateway
+        .provider_serving(provider_name, api)
+        .ok_or_else(|| api.model_not_found())?;
     let mut headers = api.headers_passed_on(request.headers())?;
     let query_of_url = match endpoint.query_to_forward(request.uri().query())? {
         "" => String::new(),
@@ -229,22 +212,15 @@ async fn answer(
         )
     })?;
     let request = RequestBody::read(&body, api, work)?;
-    let (model_name, model_name_carries_provider) = match endpoint {
-        Endpoint::BodyModel { provider, .. } => (request.model_name(provider)?, provider.is_none()),
-        Endpoint::PathModel {
-            provider, model, ..
-        } => (format!("{provider}/{model}"), false),
+    let model_name = match endpoint {
+        Endpoint::BodyModel { .. } => Cow::Owned(request.model_name()?),
+        Endpoint::PathModel { model, .. } => Cow::Borrowed(model),
     };
-    let model = gateway.model_served(&key, api, &model_name)?;
-    let provider = model.provider.clone();
-    let upstream_body = request.upstream_body(model_name_carries_provider, work);
+    let model = gateway.model_served(&key, provider, &model_name)?;
+    let upstream_body = request.upstream_body(work);
 
-    let url = format!(
-        "{}{}{query_of_url}",
-        provider.base_url(api),
-        endpoint.path()
-    );
-    let (credential, value) = api.credentials(&provider);
+    let url = format!("{}{}{query_of_url}", provider.base_url, endpoint.path());
+    let (credential, value) = provider.credential.clone();
     headers.insert(credential, value);
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
@@ -253,7 +229,8 @@ async fn answer(
         .post(url)
         .headers(headers)
         .body(upstream_body);
-    let meter = Meter::start(gateway, key, model, api, running_request);
+    let provider = model.provider.clone();
+    let meter = Meter::start(gateway, key, model, running_request);
     let meter = match work {
         Work::Answer => meter,
         Work::CountTokens => meter.unbilled(),
@@ -378,16 +355,6 @@ fn authenticate(gateway: &Gateway, headers: &HeaderMap) -> Result<Arc<Key>, Refu
     })
 }
 
-async fn models_of_chat_completions(
-    State(gateway): State<Arc<Gateway>>,
-    headers: HeaderMap,
-) -> Result<Json<Value>, Refusal> {
-    authenticate(&gateway, &headers)?;
-    let served = |model: &&Model| model.provider.serves(Api::ChatCompletions);
-    let models = gateway.models().filter(served);
-    Ok(Json(listed(models.map(|model| (&*model.name, model)))))
-}
-
 async fn models_of_provider(
     State(gateway): State<Arc<Gateway>>,
     Path(provider): Path<String>,
@@ -403,7 +370,10 @@ async fn generate_content_models(
     request: Request,
 ) -> Result<Json<Value>, Refusal> {
     authenticate(&gateway, request.headers())?;
-    if !gateway.provider_serves(&provider, Api::GenerateContent) {
+    if gateway
+        .provider_serving(&provider, Api::GenerateContent)
+        .is_none()
+    {
         return Err(no_route(request).await);
     }
     check_generate_content_query(request.uri().query(), None)?;
@@ -477,7 +447,7 @@ async fn usage(
         "today": today,
         "days": gateway.ledger.spent_by_day(Some(&key.name), last_days),
         "client_provider_prefix": gateway.client_provider_prefix,
-        "apis_by_provider": gateway.apis_by_provider(),
+        "api_by_provider": gateway.api_by_provider(),
         "models_by_provider": gateway.models_by_provider(),
     })))
 }

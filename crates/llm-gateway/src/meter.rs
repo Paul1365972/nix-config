@@ -11,7 +11,7 @@ use crate::{
     gateway::{Gateway, Model},
     keys::{Key, RunningRequest},
     ledger::Charge,
-    report::{CHAT_COMPLETIONS_STREAM_END, UsageReport},
+    report::UsageReport,
     usage::Usage,
 };
 
@@ -37,17 +37,17 @@ impl Meter {
         gateway: Arc<Gateway>,
         key: Arc<Key>,
         model: Arc<Model>,
-        api: Api,
         running_request: RunningRequest,
     ) -> Self {
         gateway
             .responses_running
             .send_modify(|running| *running += 1);
+        let usage = UsageReader::new(model.provider.api);
         Self {
             gateway,
             key,
             model,
-            usage: UsageReader::new(api),
+            usage,
             is_billed_by_provider: true,
             _running_request: running_request,
         }
@@ -208,9 +208,7 @@ impl UsageReader {
             Api::GenerateContent => b"\"usageMetadata\"",
             _ => b"\"usage\"",
         };
-        if data.trim_ascii() == CHAT_COMPLETIONS_STREAM_END {
-            self.has_reported_last = true;
-        } else if !self.is_over_buffer_limit && memmem::find(data, usage_key).is_some() {
+        if !self.is_over_buffer_limit && memmem::find(data, usage_key).is_some() {
             self.read_json(data);
         }
     }

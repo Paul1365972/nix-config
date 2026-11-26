@@ -5,16 +5,17 @@ let
   publicHost = "llm.paul.moe";
 
   providers = {
-    anthropic.base_urls = {
-      messages = "https://api.anthropic.com/v1";
+    anthropic = {
+      api = "messages";
+      base_url = "https://api.anthropic.com/v1";
     };
-    openai.base_urls = {
-      responses = "https://api.openai.com/v1";
-      chat_completions = "https://api.openai.com/v1";
+    openai = {
+      api = "responses";
+      base_url = "https://api.openai.com/v1";
     };
-    google.base_urls = {
-      chat_completions = "https://generativelanguage.googleapis.com/v1beta/openai";
-      generate_content = "https://generativelanguage.googleapis.com/v1beta";
+    google = {
+      api = "generate_content";
+      base_url = "https://generativelanguage.googleapis.com/v1beta";
     };
   };
 

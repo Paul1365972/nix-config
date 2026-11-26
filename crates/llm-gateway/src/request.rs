@@ -3,19 +3,17 @@ use std::{borrow::Cow, collections::BTreeMap, fmt, ops::Range};
 use bytes::Bytes;
 use memchr::memchr;
 use serde::de::{DeserializeSeed, Deserializer, Error, MapAccess, Visitor};
-use serde_json::{Map, Value, json, value::RawValue};
+use serde_json::{Value, value::RawValue};
 
 use crate::{
     api::{
         Api, FIELDS_OF_WRAPPED_GENERATE_CONTENT_REQUEST, Fields, FixedField,
-        GENERATE_CONTENT_REQUEST_FIELDS, Work,
+        GENERATE_CONTENT_REQUEST_FIELDS, NOTHING_STORED, Work,
     },
     refusal::Refusal,
 };
 
 const MODEL: &str = "model";
-const STREAM: &str = "stream";
-const STREAM_OPTIONS: &str = "stream_options";
 const TOOLS: &str = "tools";
 const NULL: &str = "null";
 const HOST_OF_FILES_STORED_AT_GOOGLE: &str = "generativelanguage.googleapis.com";
@@ -64,79 +62,29 @@ impl<'body> Request<'body> {
         Ok(request)
     }
 
-    pub fn model_name(&self, route_provider: Option<&str>) -> Result<String, Refusal> {
-        let model: String = serde_json::from_str(self.field(MODEL)).map_err(|_| {
-            Refusal::invalid_request("invalid_model", "The request names no model.")
-        })?;
-        match route_provider {
-            Some(provider) => Ok(format!("{provider}/{model}")),
-            None if model.contains('/') => Ok(model),
-            None => Err(Refusal::invalid_request(
-                "invalid_model",
-                "This API names a model provider/model.",
-            )),
-        }
+    pub fn model_name(&self) -> Result<String, Refusal> {
+        serde_json::from_str(self.field(MODEL))
+            .map_err(|_| Refusal::invalid_request("invalid_model", "The request names no model."))
     }
 
-    pub fn upstream_body(&self, model_name_carries_provider: bool, work: Work) -> Bytes {
-        let mut replacements = Vec::new();
-        let mut fields_stated_for_the_client = String::new();
-        let mut state = |name: &str, json: &str| {
-            fields_stated_for_the_client.push_str(&format!("{}:{json},", json!(name)));
-        };
-        if model_name_carries_provider {
-            let model_name: String = serde_json::from_str(self.field(MODEL)).unwrap_or_default();
-            let model_without_provider = model_name.split_once('/').map_or("", |(_, model)| model);
-            replacements.push((
-                self.byte_range_of(MODEL),
-                json!(model_without_provider).to_string(),
-            ));
-        }
-        let stream_reports_usage_only_when_asked =
-            self.api == Api::ChatCompletions && self.field(STREAM) == "true";
-        if stream_reports_usage_only_when_asked {
-            let mut options: Map<String, Value> =
-                serde_json::from_str(self.field(STREAM_OPTIONS)).unwrap_or_default();
-            options.insert("include_usage".to_owned(), true.into());
-            let options = Value::from(options).to_string();
-            match self.fields.contains_key(STREAM_OPTIONS) {
-                true => replacements.push((self.byte_range_of(STREAM_OPTIONS), options)),
-                false => state(STREAM_OPTIONS, &options),
-            }
-        }
-        let stated_when_left_out = match work {
-            Work::Answer => self.api.fields().stated_when_left_out,
-            Work::CountTokens => &[],
-        };
-        for FixedField { name, json } in stated_when_left_out {
-            match self.fields.contains_key(*name) {
-                true if self.field(name) == NULL => {
-                    replacements.push((self.byte_range_of(name), (*json).to_owned()));
-                }
-                true => {}
-                false => state(name, json),
-            }
-        }
-        if !fields_stated_for_the_client.is_empty() {
-            let after_opening_brace = memchr(b'{', self.body).map_or(0, |brace| brace + 1);
-            replacements.push((
-                after_opening_brace..after_opening_brace,
-                fields_stated_for_the_client,
-            ));
-        }
-        if replacements.is_empty() {
+    pub fn upstream_body(&self, work: Work) -> Bytes {
+        let FixedField { name, json } = NOTHING_STORED;
+        if self.api != Api::Responses || work != Work::Answer || self.field(name) != NULL {
             return self.body.clone();
         }
-        replacements.sort_by_key(|(range, _)| range.start);
-
-        let mut upstream_body = Vec::with_capacity(self.body.len() + 64);
-        let mut copied_until = 0;
-        for (range, replacement) in replacements {
-            upstream_body.extend_from_slice(&self.body[copied_until..range.start]);
-            upstream_body.extend_from_slice(replacement.as_bytes());
-            copied_until = range.end;
-        }
-        upstream_body.extend_from_slice(&self.body[copied_until..]);
+        let (range, replacement) = if self.fields.contains_key(name) {
+            (self.byte_range_of(name), Cow::Borrowed(json))
+        } else {
+            let after_opening_brace = memchr(b'{', self.body).map_or(0, |brace| brace + 1);
+            (
+                after_opening_brace..after_opening_brace,
+                Cow::Owned(format!("\"{name}\":{json},")),
+            )
+        };
+        let mut upstream_body = Vec::with_capacity(self.body.len() + replacement.len());
+        upstream_body.extend_from_slice(&self.body[..range.start]);
+        upstream_body.extend_from_slice(replacement.as_bytes());
+        upstream_body.extend_from_slice(&self.body[range.end..]);
         upstream_body.into()
     }
 
