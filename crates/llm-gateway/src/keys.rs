@@ -202,7 +202,7 @@ pub struct Keys {
 }
 
 impl Keys {
-    pub fn load(store: Store, public_host: &str) -> Result<Self> {
+    pub fn load(store: Store, token_prefix: String) -> Result<Self> {
         let stored = store.keys().context("reading the keys")?;
         let by_name = stored.into_iter().map(|(name, stored)| {
             let name: Arc<str> = name.into();
@@ -217,7 +217,7 @@ impl Keys {
         Ok(Self {
             by_name: RwLock::new(by_name.collect()),
             store,
-            token_prefix: public_host.replace('.', "-"),
+            token_prefix,
             one_change_at_a_time: Mutex::new(()),
         })
     }

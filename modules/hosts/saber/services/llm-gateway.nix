@@ -76,6 +76,8 @@ in
         inherit listen models;
         dashboard_listen = dashboardListen;
         public_host = publicHost;
+        key_prefix = "paulmoe";
+        client_provider_prefix = "paulmoe";
         store_file = "/var/lib/llm-gateway/store.redb";
         providers = lib.mapAttrs (
           name: provider: provider // { key_file = "/run/credentials/llm-gateway.service/${name}"; }

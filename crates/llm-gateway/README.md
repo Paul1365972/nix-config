@@ -34,17 +34,33 @@ A client that speaks only another provider's API needs a translator on its own s
 A key goes in `Authorization: Bearer`, `x-api-key`, or `x-goog-api-key`.
 The gateway's own address with a key's token after a `#` opens a page that shows the key's limits and spending, keeps the token in that browser, and walks through setting up a client.
 
-OpenCode takes the gateway as the base URL of its own providers, with the gateway key from `/connect`:
+OpenCode takes the gateway as providers of their own beside the ones it has, so a login it already holds keeps working.
+Each names the provider whose models and API it borrows, and lists the models the gateway serves:
 
 ```jsonc
 {
   "providers": {
-    "anthropic": { "settings": { "baseURL": "https://llm.paul.moe/anthropic/v1" } },
-    "openai": { "settings": { "baseURL": "https://llm.paul.moe/openai/v1", "transport": "http" } },
-    "google": { "settings": { "baseURL": "https://llm.paul.moe/google/v1beta" } },
+    "paulmoe-anthropic": {
+      "canonical": "anthropic",
+      "settings": { "baseURL": "https://llm.paul.moe/anthropic/v1", "apiKey": "…" },
+      "models": { "claude-opus-5-5": {} },
+    },
+    "paulmoe-openai": {
+      "canonical": "openai",
+      "settings": { "baseURL": "https://llm.paul.moe/openai/v1", "apiKey": "…", "transport": "http" },
+      "models": { "gpt-6.2-sol": {} },
+    },
+    "paulmoe-google": {
+      "canonical": "google",
+      "settings": { "baseURL": "https://llm.paul.moe/google/v1beta", "apiKey": "…" },
+      "models": { "gemini-4-neon": {} },
+    },
   },
 }
 ```
+
+The usage page writes this block out in full for a key.
+A program built on the OpenAI Agents SDK should set `OPENAI_AGENTS_DISABLE_TRACING=1`, or the SDK sends the gateway's key to OpenAI.
 
 ## Keys
 
@@ -70,6 +86,7 @@ Web searches on Messages and Responses are charged per search.
 ## Configure
 
 Providers and models are declared in [llm-gateway.nix](../../modules/hosts/saber/services/llm-gateway.nix), with the providers' keys in `secrets/saber.yaml`.
+`key_prefix` starts every new key, and `client_provider_prefix` starts the names the usage page gives the gateway's providers in a client; both are short words of their own, not taken from the host.
 Each provider's `base_urls` maps the APIs it serves to their upstream base URLs.
 For Google, `generate_content` uses `https://generativelanguage.googleapis.com/v1beta` and `chat_completions` uses `https://generativelanguage.googleapis.com/v1beta/openai`.
 Prices come from a pinned [models.dev](https://github.com/anomalyco/models.dev); `nix flake update models-dev` takes in new ones.

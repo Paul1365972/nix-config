@@ -9,12 +9,16 @@ use serde::Deserialize;
 
 use crate::{api::Api, price::ModelPrices};
 
+const PREFIX_LENGTH_LIMIT: usize = 12;
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     pub listen: SocketAddr,
     pub dashboard_listen: SocketAddr,
     pub public_host: String,
+    pub key_prefix: String,
+    pub client_provider_prefix: String,
     pub store_file: PathBuf,
     pub providers: BTreeMap<String, ProviderConfig>,
     pub models: BTreeMap<String, ModelPrices>,
@@ -43,6 +47,20 @@ impl Config {
         let is_host_character = |byte: u8| byte.is_ascii_alphanumeric() || b"-.".contains(&byte);
         if self.public_host.is_empty() || !self.public_host.bytes().all(is_host_character) {
             bail!("public_host {:?} is not a host name", self.public_host);
+        }
+        let prefixes = [
+            ("key_prefix", &self.key_prefix),
+            ("client_provider_prefix", &self.client_provider_prefix),
+        ];
+        for (setting, prefix) in prefixes {
+            let is_prefix_character = |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
+            let is_short_word = (1..=PREFIX_LENGTH_LIMIT).contains(&prefix.len())
+                && prefix.bytes().all(is_prefix_character);
+            if !is_short_word {
+                bail!(
+                    "{setting} {prefix:?} is not 1 to {PREFIX_LENGTH_LIMIT} lower-case letters and digits"
+                );
+            }
         }
         for (name, prices) in &self.models {
             let Some((provider, _)) = name.split_once('/') else {

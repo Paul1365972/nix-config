@@ -167,7 +167,8 @@ function morphNode(node, wanted) {
     if (node.nodeValue !== wanted.nodeValue) node.nodeValue = wanted.nodeValue;
     return;
   }
-  for (const { name } of [...node.attributes]) if (!wanted.hasAttribute(name) && !name.startsWith("data-ui-")) node.removeAttribute(name);
+  const isKept = (name) => name.startsWith("data-ui-") || name === "aria-expanded";
+  for (const { name } of [...node.attributes]) if (!wanted.hasAttribute(name) && !isKept(name)) node.removeAttribute(name);
   for (const { name, value } of wanted.attributes) if (node.getAttribute(name) !== value) node.setAttribute(name, value);
   morphChildren(node, wanted);
 }
@@ -256,6 +257,30 @@ export async function request(method, path, { body, token } = {}) {
 }
 
 document.addEventListener("click", (event) => { if (event.target.matches("dialog[open]")) event.target.close(); });
+
+function setPicker(picker, isOpen) {
+  picker.toggleAttribute("data-ui-open", isOpen);
+  picker.querySelector(":scope > button").setAttribute("aria-expanded", isOpen);
+}
+document.addEventListener("click", (event) => {
+  const opener = event.target.closest?.(".picker > button");
+  for (const picker of document.querySelectorAll(".picker")) setPicker(picker, picker === opener?.parentElement && !picker.hasAttribute("data-ui-open"));
+  opener?.parentElement.querySelector(`[data-ui-open] [aria-selected="true"]`)?.focus();
+});
+document.addEventListener("keydown", (event) => {
+  const picker = event.target.closest?.(".picker");
+  if (!picker || !["Escape", "ArrowDown", "ArrowUp"].includes(event.key)) return;
+  event.preventDefault();
+  const options = [...picker.querySelectorAll("[role=option]")];
+  const focused = options.indexOf(document.activeElement);
+  if (event.key !== "Escape") {
+    setPicker(picker, true);
+    options.at(focused < 0 ? options.findIndex((option) => option.ariaSelected === "true") : (focused + (event.key === "ArrowDown" ? 1 : -1)) % options.length).focus();
+    return;
+  }
+  setPicker(picker, false);
+  picker.querySelector(":scope > button").focus();
+});
 document.addEventListener("wheel", (event) => { if (event.target.type === "number" && event.target === document.activeElement) event.target.blur(); }, { passive: true });
 let highlighted = [null, undefined];
 document.addEventListener("pointerover", (event) => {

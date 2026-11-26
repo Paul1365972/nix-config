@@ -64,7 +64,7 @@ function renderKey(key) {
 
 const emptyPass = `<div class="slot" data-key="empty"><div><article class="pass"><form class="dialog-body" data-add>` +
   `<h2>No keys in this browser yet</h2><p>Open the link you were sent, or paste a key's token or link here, to see what the key has left and what it was spent on.</p>` +
-  `<div class="inline-form"><input type="text" name="token" required aria-label="Token or link" placeholder="llm-… or https://…/#llm-…" autocomplete="off" spellcheck="false">` +
+  `<div class="inline-form"><input type="text" name="token" required aria-label="Token or link" placeholder="A key or its link" autocomplete="off" spellcheck="false">` +
   button({ kind: "primary", label: "Add key", busy: "Checking" }) + `</div><p class="problem line" role="alert"></p></form></article></div></div>`;
 
 function render() {

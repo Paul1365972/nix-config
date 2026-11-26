@@ -474,6 +474,7 @@ async fn usage(
         "models": gateway.ledger.models_since(&key.name, key.period_start()),
         "today": today,
         "days": gateway.ledger.spent_by_day(Some(&key.name), last_days),
+        "client_provider_prefix": gateway.client_provider_prefix,
         "apis_by_provider": gateway.apis_by_provider(),
         "models_by_provider": gateway.models_by_provider(),
     })))
