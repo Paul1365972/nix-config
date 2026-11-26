@@ -24,7 +24,7 @@ use crate::{
         check_generate_content_query,
     },
     dashboard,
-    gateway::{Gateway, Model, Provider},
+    gateway::{Gateway, Provider},
     keys::Key,
     ledger::today,
     meter::{Meter, relay},
@@ -55,10 +55,13 @@ pub async fn serve(
     let router = Router::new()
         .merge(page::usage_routes())
         .merge(api_routes())
-        .route("/{provider}/v1/models", get(models_of_provider))
         .route("/v1/usage", get(usage))
         .route("/health", get(health))
-        .fallback(no_route)
+        .fallback(
+            |State(gateway): State<Arc<Gateway>>, request: Request| async move {
+                no_route(&gateway, &request)
+            },
+        )
         .with_state(gateway.clone());
     let listener = bind(listen).await?;
     let dashboard_listener = bind(dashboard_listen).await?;
@@ -126,7 +129,8 @@ async fn stop_signal() {
 
 fn api_routes() -> Router<Arc<Gateway>> {
     let mut routes = Router::new()
-        .route("/{provider}/v1beta/models", get(generate_content_models))
+        .route("/{provider}/v1/models", get(models))
+        .route("/{provider}/v1beta/models", get(models))
         .route("/{provider}/v1beta/models/{target}", post(generate_content));
     for (api, work, path) in Api::ROUTES_WITH_MODEL_IN_BODY {
         routes = routes.route(
@@ -157,19 +161,26 @@ async fn generate_content(
         let endpoint = Endpoint::PathModel { model, method };
         return forward(gateway, &provider, endpoint, request).await;
     }
-    Err(no_route(request).await)
+    Err(no_route(&gateway, &request))
 }
 
-async fn no_route(request: Request) -> Refusal {
+fn no_route(gateway: &Gateway, request: &Request) -> Refusal {
+    let (method, path) = (request.method(), request.uri().path());
+    let provider = path
+        .split('/')
+        .nth(1)
+        .and_then(|name| gateway.provider(name));
+    let served_instead = provider.map_or_else(String::new, |Provider { name, api, .. }| {
+        format!(
+            " It serves {name} on {}.",
+            api.name_and_answering_route(name)
+        )
+    });
     Refusal::new(
         StatusCode::NOT_FOUND,
         "not_found_error",
         "no_route",
-        format!(
-            "The gateway has no route {} {}.",
-            request.method(),
-            request.uri().path()
-        ),
+        format!("The gateway has no route {method} {path}.{served_instead}"),
     )
 }
 
@@ -197,7 +208,7 @@ async fn answer(
     let (api, work) = (endpoint.api(), endpoint.work());
     let provider = gateway
         .provider_serving(provider_name, api)
-        .ok_or_else(|| api.model_not_found())?;
+        .ok_or_else(|| no_route(&gateway, &request))?;
     let mut headers = api.headers_passed_on(request.headers())?;
     let query_of_url = match endpoint.query_to_forward(request.uri().query())? {
         "" => String::new(),
@@ -355,74 +366,25 @@ fn authenticate(gateway: &Gateway, headers: &HeaderMap) -> Result<Arc<Key>, Refu
     })
 }
 
-async fn models_of_provider(
-    State(gateway): State<Arc<Gateway>>,
-    Path(provider): Path<String>,
-    headers: HeaderMap,
-) -> Result<Json<Value>, Refusal> {
-    authenticate(&gateway, &headers)?;
-    Ok(Json(listed(provider_models(&gateway, &provider))))
-}
-
-async fn generate_content_models(
+async fn models(
     State(gateway): State<Arc<Gateway>>,
     Path(provider): Path<String>,
     request: Request,
 ) -> Result<Json<Value>, Refusal> {
     authenticate(&gateway, request.headers())?;
-    if gateway
-        .provider_serving(&provider, Api::GenerateContent)
-        .is_none()
-    {
-        return Err(no_route(request).await);
+    let Provider { name, api, .. } = gateway
+        .provider(&provider)
+        .filter(|Provider { name, api, .. }| {
+            request.uri().path() == format!("/{name}/{}/models", api.version())
+        })
+        .ok_or_else(|| no_route(&gateway, &request))?;
+    if *api == Api::GenerateContent {
+        check_generate_content_query(request.uri().query(), None)?;
     }
-    check_generate_content_query(request.uri().query(), None)?;
-    let models: Vec<_> = provider_models(&gateway, &provider)
-        .map(|(name, _)| {
-            json!({
-                "name": format!("models/{name}"),
-                "displayName": name,
-                "supportedGenerationMethods": ["generateContent", "countTokens"],
-            })
-        })
-        .collect();
-    Ok(Json(json!({ "models": models })))
-}
-
-fn provider_models<'gateway>(
-    gateway: &'gateway Gateway,
-    provider: &str,
-) -> impl Iterator<Item = (&'gateway str, &'gateway Model)> {
-    gateway.models().filter_map(move |model| {
-        let (model_provider, name_in_provider) = model.name.split_once('/')?;
-        (model_provider == provider).then_some((name_in_provider, model))
-    })
-}
-
-fn listed<'model>(models: impl Iterator<Item = (&'model str, &'model Model)>) -> Value {
-    let models: Vec<Value> = models
-        .map(|(name, model)| {
-            let as_openai_clients_read_it =
-                json!({ "id": name, "object": "model", "created": 0, "owned_by": model.provider.name });
-            let as_anthropic_clients_read_it_too =
-                json!({ "type": "model", "display_name": name, "created_at": "1970-01-01T00:00:00Z" });
-            let mut model = as_openai_clients_read_it;
-            model
-                .as_object_mut()
-                .into_iter()
-                .zip(as_anthropic_clients_read_it_too.as_object())
-                .for_each(|(model, more)| model.extend(more.clone()));
-            model
-        })
-        .collect();
-    let id = |model: Option<&Value>| model.map(|model| model["id"].clone());
-    json!({
-        "object": "list",
-        "has_more": false,
-        "first_id": id(models.first()),
-        "last_id": id(models.last()),
-        "data": models,
-    })
+    let names_in_provider = gateway
+        .models()
+        .filter_map(|model| model.name.strip_prefix(name)?.strip_prefix('/'));
+    Ok(Json(api.model_list(name, names_in_provider)))
 }
 
 async fn usage(

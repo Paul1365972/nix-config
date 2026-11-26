@@ -5,7 +5,7 @@ use axum::http::{
     header::{AUTHORIZATION, InvalidHeaderValue},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::refusal::Refusal;
 
@@ -282,11 +282,62 @@ impl Api {
         Ok((name, value))
     }
 
-    pub fn model_not_found(self) -> Refusal {
-        let version = match self {
+    pub fn version(self) -> &'static str {
+        match self {
             Self::GenerateContent => "v1beta",
             Self::Messages | Self::Responses => "v1",
-        };
+        }
+    }
+
+    pub fn name_and_answering_route(self, provider: &str) -> String {
+        let version = self.version();
+        match self {
+            Self::GenerateContent => format!(
+                "the Gemini API at POST /{provider}/{version}/models/{{model}}:generateContent"
+            ),
+            Self::Messages => format!("the Messages API at POST /{provider}/{version}/messages"),
+            Self::Responses => format!("the Responses API at POST /{provider}/{version}/responses"),
+        }
+    }
+
+    pub fn model_list<'name>(
+        self,
+        provider: &str,
+        names: impl Iterator<Item = &'name str>,
+    ) -> Value {
+        let models: Vec<Value> = names
+            .map(|name| match self {
+                Self::GenerateContent => json!({
+                    "name": format!("models/{name}"),
+                    "displayName": name,
+                    "supportedGenerationMethods": ["generateContent", "countTokens"],
+                }),
+                Self::Messages => json!({
+                    "type": "model",
+                    "id": name,
+                    "display_name": name,
+                    "created_at": "1970-01-01T00:00:00Z",
+                }),
+                Self::Responses => {
+                    json!({ "id": name, "object": "model", "created": 0, "owned_by": provider })
+                }
+            })
+            .collect();
+        let id = |model: Option<&Value>| model.map(|model| model["id"].clone());
+        match self {
+            Self::GenerateContent => json!({ "models": models }),
+            Self::Messages => json!({
+                "has_more": false,
+                "first_id": id(models.first()),
+                "last_id": id(models.last()),
+                "data": models,
+            }),
+            Self::Responses => json!({ "object": "list", "data": models }),
+        }
+    }
+
+    pub fn model_not_found(self) -> Refusal {
+        let version = self.version();
         Refusal::new(
             StatusCode::NOT_FOUND,
             "not_found_error",

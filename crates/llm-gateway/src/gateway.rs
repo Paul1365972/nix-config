@@ -108,11 +108,12 @@ impl Gateway {
         self.providers.keys().map(String::as_str)
     }
 
+    pub fn provider(&self, name: &str) -> Option<&Provider> {
+        self.providers.get(name).map(Arc::as_ref)
+    }
+
     pub fn provider_serving(&self, name: &str, api: Api) -> Option<&Provider> {
-        self.providers
-            .get(name)
-            .filter(|provider| provider.api == api)
-            .map(Arc::as_ref)
+        self.provider(name).filter(|provider| provider.api == api)
     }
 
     pub fn api_by_provider(&self) -> BTreeMap<&str, Api> {

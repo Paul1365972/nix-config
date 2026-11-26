@@ -20,8 +20,8 @@ It refuses a request that asks to be stored, continues a stored response, or ref
 - `POST /{provider}/v1beta/models/{model}:generateContent` is Google's Gemini API.
 - `POST /{provider}/v1beta/models/{model}:streamGenerateContent?alt=sse` streams a Gemini answer.
 - `POST /{provider}/v1beta/models/{model}:countTokens` counts Gemini tokens, uncharged.
+- `GET /{provider}/v1/models` lists the models of a provider that serves Messages or Responses, in that API's own shape.
 - `GET /{provider}/v1beta/models` lists the models of a provider that serves the Gemini API.
-- `GET /{provider}/v1/models` lists a provider's models.
 - `GET /v1/usage` shows what the calling key has spent of its limits.
 
 Use the provider's own model name in the request body for Messages and Responses, or in the path for Gemini.

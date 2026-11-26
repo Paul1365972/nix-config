@@ -74,8 +74,8 @@ export function renderSetup(keys) {
       text.connections.map(({ provider, api }) =>
         step(`For ${familyOf(provider)} models, paste this into the URL field and set the API type to ${apiNames[api]}.`, copies(`url-${provider}`), shown(`url-${provider}`))).join("") +
       step(`Paste this into ${text.connections.length === 1 ? "its API Key field" : "the API Key field of each"}.`, copies("token"), shown("token")) + `</ol>` +
-      (text.outsideOpenWebUi.length ? `<p class="note">${and(text.outsideOpenWebUi.map(({ provider }) => familyOf(provider)))} models will not appear there, because Open WebUI speaks only OpenAI's formats. ` +
-        `A community pipe function for the provider's own API can add them; its address is under Other clients.</p>` : ""),
+      (text.outsideOpenWebUi.length ? `<p class="note">Open WebUI speaks only OpenAI's formats, so ${and(text.outsideOpenWebUi.map(({ provider }) => familyOf(provider)))} models do not work through a connection, even though adding their address lists them. ` +
+        `They need a pipe function that speaks the provider's own API.</p>` : ""),
     other: `<p class="lead">Point your client or SDK at the base URL for its API format, and use your key as the API key.</p>` +
       `<ul class="addresses">${text.groups.map(group).join("")}</ul>` +
       (text.curl ? `<div class="line"><p>Test it with curl</p>${copies("curl")}</div>${shown("curl")}` : ""),
