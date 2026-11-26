@@ -253,6 +253,7 @@ impl<'body> Request<'body> {
     fn items_of(&self, list_field: &str) -> Result<Vec<Value>, Refusal> {
         match serde_json::from_str(self.field(list_field)) {
             Ok(Value::Array(items)) => Ok(items),
+            Ok(alone @ Value::Object(_)) => Ok(vec![alone]),
             Ok(Value::Null | Value::String(_)) => Ok(Vec::new()),
             _ => Err(unreadable_field(list_field)),
         }
@@ -284,7 +285,8 @@ fn stored_reference() -> Refusal {
 }
 
 fn items(list: &Value) -> impl Iterator<Item = &Value> + Clone {
-    list.as_array().into_iter().flatten()
+    let alone = list.is_object().then_some(list);
+    list.as_array().into_iter().flatten().chain(alone)
 }
 
 struct TopLevelFields;

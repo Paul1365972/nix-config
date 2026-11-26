@@ -257,6 +257,7 @@ const RESPONSES_FIELDS: Fields = Fields {
         "user",
         "safety_identifier",
         "metadata",
+        "client_metadata",
         "prompt_cache_key",
         "prompt_cache_retention",
         "prompt_cache_options",
