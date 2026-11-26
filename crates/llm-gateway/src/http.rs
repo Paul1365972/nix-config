@@ -183,13 +183,15 @@ async fn generate_content(
 }
 
 async fn no_route(request: Request) -> Refusal {
-    let route = format!("{} {}", request.method(), request.uri().path());
-    let _ = to_bytes(request.into_body(), REQUEST_BODY_LIMIT_BYTES).await;
     Refusal::new(
         StatusCode::NOT_FOUND,
         "not_found_error",
         "no_route",
-        format!("The gateway has no route {route}."),
+        format!(
+            "The gateway has no route {} {}.",
+            request.method(),
+            request.uri().path()
+        ),
     )
 }
 
