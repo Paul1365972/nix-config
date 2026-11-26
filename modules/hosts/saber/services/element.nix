@@ -2,6 +2,11 @@ _: {
   den.aspects.saber.provides.element = {
     nixos = { pkgs, ... }: {
       services.caddy.virtualHosts."http://chat.paul.moe".extraConfig = ''
+        header {
+          Content-Security-Policy "frame-ancestors 'self'"
+          X-Frame-Options SAMEORIGIN
+          X-Content-Type-Options nosniff
+        }
         root * ${pkgs.element-web}
         file_server
         try_files {path} /index.html

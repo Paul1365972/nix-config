@@ -25,26 +25,37 @@
           '';
         };
         services.caddy.virtualHosts = {
-          # Federation needs explicit delegation to 443 because server_name has no port.
           "http://matrix.paul.moe".extraConfig = ''
-            handle /.well-known/matrix/server {
-              header Content-Type application/json
-              respond `{"m.server":"matrix.paul.moe:443"}`
-            }
             handle /.well-known/matrix/client {
               header Content-Type application/json
               header Access-Control-Allow-Origin *
               respond `{"m.homeserver":{"base_url":"https://matrix.paul.moe"}}`
             }
+            @servedOnlyInTheTailnetOrNowhere path /_synapse/admin/* /_matrix/federation/* /_matrix/key/*
+            handle @servedOnlyInTheTailnetOrNowhere {
+              respond 404
+            }
             handle {
-              reverse_proxy http://127.0.0.1:8008
+              reverse_proxy http://127.0.0.1:8008 {
+                header_up X-Forwarded-For {client_ip}
+              }
             }
           '';
           ":8091".extraConfig = ''
             bind 127.0.0.1
-            root * ${pkgs.synapse-admin}
-            file_server
-            try_files {path} /index.html
+            @synapse path /_matrix/* /_synapse/*
+            handle @synapse {
+              reverse_proxy http://127.0.0.1:8008
+            }
+            handle /config.json {
+              header Content-Type application/json
+              respond `{"restrictBaseUrl":"https://matrix-admin.echidna-ghost.ts.net"}`
+            }
+            handle {
+              root * ${pkgs.synapse-admin}
+              file_server
+              try_files {path} /index.html
+            }
           '';
         };
         services.tailscale.serve.services.matrix-admin.endpoints."tcp:443" = "http://127.0.0.1:8091";
@@ -77,6 +88,8 @@
             };
 
             registration_requires_token = true;
+            require_auth_for_profile_requests = true;
+            federation_domain_whitelist = [ ];
             password_config.enabled = true;
             suppress_key_server_warning = true;
           };
