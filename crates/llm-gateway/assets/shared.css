@@ -230,14 +230,13 @@ pre { margin: .45rem 0 0; padding: .7rem .9rem; overflow-x: auto; border-radius:
 .addresses .models { margin-top: .1rem; font-size: .78125rem; color: var(--quiet); overflow-wrap: anywhere; }
 .addresses h3 a { margin-left: auto; font-size: .78125rem; font-weight: 500; color: var(--quiet); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2em; }
 .addresses h3 a:hover { color: var(--soft); }
-.facts { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .3rem 1rem; margin: .4rem 0 0; padding-top: .55rem; border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent); font-size: .8125rem; }
-.facts dt { color: var(--quiet); }
-.facts dd { margin: 0; color: var(--soft); }
 .lead + .lead { margin-top: .5rem; }
-.reasons { margin-top: 1.15rem; font-size: .8125rem; color: var(--quiet); }
-.reasons ul { display: grid; gap: .35rem; margin: .4rem 0 0; padding: 0; list-style: none; }
-.reasons b { font-weight: 600; color: var(--soft); }
-.reasons + .line { margin-top: 1.1rem; }
+.rules { margin-top: 1.6rem; padding: 0 1.5rem; font-size: .8125rem; color: var(--quiet); }
+.rules h2 { font-size: .9375rem; font-weight: 650; color: var(--ink); }
+.rules > p { margin-top: .35rem; font-size: .875rem; color: var(--soft); }
+.rules ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.1rem 2rem; margin: 1rem 0 0; padding: 1rem 0 0; border-top: 1px solid var(--line); list-style: none; }
+.rules h3 { font-size: .8125rem; font-weight: 600; color: var(--soft); }
+.rules li p { margin-top: .2rem; }
 .address-row { display: grid; grid-template-columns: minmax(0, 1fr) 18.5rem; align-items: center; gap: .1rem 1rem; min-height: 2.1rem; margin-top: .4rem; padding-top: .4rem; border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent); font-size: .84375rem; color: var(--soft); }
 .address-row .address { min-width: 0; white-space: normal; }
 .address-row code { min-width: 0; overflow-wrap: anywhere; }
@@ -305,5 +304,7 @@ input[type="number"]::-webkit-inner-spin-button { appearance: none; }
   .token-row .button { width: 2.5rem; padding-inline: 0; }
   .tabs { gap: 1.1rem; }
   .address-row { grid-template-columns: minmax(0, 1fr); }
+  .rules { padding: 0 1.1rem; }
+  .rules ul { grid-template-columns: minmax(0, 1fr); }
   .slot > div { margin-inline: -.75rem; padding-inline: .75rem; }
 }
