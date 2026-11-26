@@ -27,8 +27,6 @@ let
     "openai/gpt-6.1-terra"
     "openai/gpt-6.2-sol"
     "openai/gpt-6.2-astra"
-    "google/gemini-3.5-flash-lite"
-    "google/gemini-flash-lite-latest"
     "google/gemini-4-hydrogen"
     "google/gemini-4-neon"
   ] pricesFromModelsDev;
