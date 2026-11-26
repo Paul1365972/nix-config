@@ -3,7 +3,28 @@ import { button, copy, dot, escaped, iconCopyButton, icons, providerName, veiled
 const TOKEN_PLACE = "";
 const clients = { opencode: "OpenCode", "open-webui": "Open WebUI", other: "Other clients" };
 const modelFamilies = { anthropic: "Claude", google: "Gemini", openai: "GPT" };
-const apiNames = { messages: "Messages", responses: "Responses", generate_content: "Gemini API" };
+const apis = {
+  messages: {
+    name: "Messages", reference: "https://platform.claude.com/docs/en/api/messages/create", addressAtProvider: "https://api.anthropic.com",
+    supported: "text, inline images and PDFs, streaming, tools, thinking, prompt caching, structured output, web search and fetch, token counting",
+    excluded: "Files API, batches, code execution, advisor tool, refusal fallback, fast mode",
+  },
+  responses: {
+    name: "Responses", reference: "https://developers.openai.com/api/reference/resources/responses/methods/create", addressAtProvider: "https://api.openai.com",
+    supported: "text, inline images and PDFs, streaming, tools, reasoning, prompt caching, structured output, web search, token counting",
+    excluded: "Files API, stored responses and conversations, background mode, file search, code interpreter, image generation, other service tiers",
+  },
+  generate_content: {
+    name: "Gemini API", reference: "https://aistudio.google.com/api-reference/generate-content", addressAtProvider: "https://generativelanguage.googleapis.com",
+    supported: "text, inline images and PDFs, streaming, tools, thinking, automatic caching, structured output, token counting",
+    excluded: "Files API, explicit caches, batches, Google Search and Maps grounding",
+  },
+};
+const reasonsForExclusion = [
+  ["Nothing stored at the provider.", "Every key shares one account per provider, so anything stored there could be reached by other key holders. Files still work when sent inline in the request."],
+  ["Charged from reported usage.", "Your key is billed from the tokens and web searches the provider reports on each request. Features billed outside that report cannot be charged to your key."],
+  ["Standard tiers only.", "Fast mode and other service tiers are refused, so every request runs at list price."],
+];
 const familyOf = (provider) => modelFamilies[provider] ?? providerName(provider);
 let chosenClient = "opencode", chosenKey = null;
 
@@ -24,6 +45,7 @@ function texts(usage) {
     models: Object.fromEntries(modelsOf(provider).map((name) => [name, {}])),
   }];
   const messagesProvider = providers.find(({ api }) => api === "messages")?.provider;
+  const exampleProvider = providers.find(({ api }) => api === "responses") ?? providers[0];
   return {
     token: TOKEN_PLACE,
     config: JSON.stringify({ providers: Object.fromEntries(providers.map(inOpenCode)) }, null, 2),
@@ -33,8 +55,9 @@ function texts(usage) {
     outsideOpenWebUi,
     curl: messagesProvider && `curl ${origin}/${messagesProvider}/v1/messages \\\n  -H "x-api-key: ${TOKEN_PLACE}" \\\n  -H "anthropic-version: 2023-06-01" \\\n  -H "content-type: application/json" \\\n` +
       `  -d '{"model": "${mostUsed(modelsOf(messagesProvider).map((model) => [messagesProvider, model]))[1]}", "max_tokens": 64,\n       "messages": [{"role": "user", "content": "Say hi."}]}'`,
+    example: exampleProvider && { atProvider: `${apis[exampleProvider.api].addressAtProvider}${exampleProvider.url.slice(exampleProvider.url.lastIndexOf("/"))}`, atGateway: exampleProvider.url },
     groups: providers.map(({ provider, api, url }) => ({
-      title: `${dot(provider)}${providerName(provider)}`, models: modelsOf(provider).join(", "), api, url,
+      title: `${dot(provider)}${providerName(provider)}`, models: modelsOf(provider).join(", "), api, address: `${origin}/${provider}`,
     })),
   };
 }
@@ -62,9 +85,11 @@ export function renderSetup(keys) {
   const copies = (snippet, label = "Copy") =>
     button({ kind: "ghost small", label, done: "Copied", icon: icons.copy, attributes: `data-action="copy-setup" data-snippet="${snippet}"` });
   const step = (words, control = "", field = "") => `<li><div><div class="line"><p>${words}</p>${control}</div>${field}</div></li>`;
-  const group = ({ title, models, api, url }) => `<li><h3>${title}</h3><p class="models">${escaped(models)}</p>` +
-    `<div class="address-row"><span>${apiNames[api]}</span><span class="address"><code>${escaped(url)}</code>` +
-    `${iconCopyButton("Copy the base URL", `data-action="copy-text" data-text="${escaped(url)}"`)}</span></div></li>`;
+  const group = ({ title, models, api, address }) => `<li><h3>${title}<a href="${apis[api].reference}" target="_blank" rel="noreferrer">${apis[api].name.replace(/ API$/, "")} API reference</a></h3>` +
+    `<p class="models">${escaped(models)}</p>` +
+    `<div class="address-row"><span>Replaces <code>${apis[api].addressAtProvider}</code></span><span class="address"><code>${escaped(address)}</code>` +
+    `${iconCopyButton("Copy the address", `data-action="copy-text" data-text="${escaped(address)}"`)}</span></div>` +
+    `<dl class="facts"><dt>Supported</dt><dd>${apis[api].supported}</dd><dt>Excluded</dt><dd>${apis[api].excluded}</dd></dl></li>`;
   const panels = {
     opencode: `<ol class="steps">` +
       step("Merge this into <code>~/.config/opencode/opencode.jsonc</code>. Your key is already in it, and your existing providers and logins stay as they are. It needs OpenCode 2, which npm ships as <code>@opencode/cli</code>.", copies("config"), shown("config")) +
@@ -72,12 +97,15 @@ export function renderSetup(keys) {
     "open-webui": `<ol class="steps">` +
       step(`In Open WebUI, open Admin Panel, then Settings, then Connections. Under OpenAI API, add ${text.connections.length === 1 ? "a connection" : "one connection for each address below"}.`) +
       text.connections.map(({ provider, api }) =>
-        step(`For ${familyOf(provider)} models, paste this into the URL field and set the API type to ${apiNames[api]}.`, copies(`url-${provider}`), shown(`url-${provider}`))).join("") +
+        step(`For ${familyOf(provider)} models, paste this into the URL field and set the API type to ${apis[api].name}.`, copies(`url-${provider}`), shown(`url-${provider}`))).join("") +
       step(`Paste this into ${text.connections.length === 1 ? "its API Key field" : "the API Key field of each"}.`, copies("token"), shown("token")) + `</ol>` +
       (text.outsideOpenWebUi.length ? `<p class="note">Open WebUI speaks only OpenAI's formats, so ${and(text.outsideOpenWebUi.map(({ provider }) => familyOf(provider)))} models do not work through a connection, even though adding their address lists them. ` +
         `They need a pipe function that speaks the provider's own API.</p>` : ""),
-    other: `<p class="lead">Point your client or SDK at the base URL for its API format, and use your key as the API key.</p>` +
+    other: `<p class="lead">Replace the provider's address with the one below and keep any path after it` +
+      (text.example ? `, so <code>${escaped(text.example.atProvider)}</code> becomes <code>${escaped(text.example.atGateway)}</code>` : "") + `. Use your key as the API key.</p>` +
+      `<p class="lead">Each provider is served on its own API only. There is no Chat Completions endpoint, and no OpenAI-compatible endpoint for Claude or Gemini.</p>` +
       `<ul class="addresses">${text.groups.map(group).join("")}</ul>` +
+      `<div class="reasons"><p>Why features are excluded</p><ul>${reasonsForExclusion.map(([rule, reason]) => `<li><b>${rule}</b> ${reason}</li>`).join("")}</ul></div>` +
       (text.curl ? `<div class="line"><p>Test it with curl</p>${copies("curl")}</div>${shown("curl")}` : ""),
   };
   const tabs = Object.entries(clients).map(([client, name]) =>
