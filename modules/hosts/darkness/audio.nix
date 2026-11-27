@@ -39,8 +39,6 @@
           wireplumber.extraConfig."50-sound-card" = {
             "wireplumber.settings" = {
               "device.restore-profile" = false;
-              # PipeWire volumes are cubic: 25% in wpctl is 0.25^3.
-              "device.routes.default-sink-volume" = 0.25 * 0.25 * 0.25;
             };
 
             "monitor.alsa.rules" = [
